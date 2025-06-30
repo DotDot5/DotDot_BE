@@ -15,8 +15,8 @@ public class SwaggerConfig {
 
         Info info = new Info()
                 .version("v1.0.0")
-                .title("Stagemate API")
-                .description("스테이지메이트 API 목록입니다.");
+                .title("DotDot API")
+                .description("DotDot API 목록입니다.");
 
         return new OpenAPI()
                 .info(info);
