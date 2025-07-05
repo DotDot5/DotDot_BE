@@ -1,5 +1,6 @@
 package com.example.dotdot.domain;
 
+import com.example.dotdot.dto.request.user.UserUpdateRequest;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,5 +36,22 @@ public class User {
     // refreshToken 업데이트
     public void updateRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    // 사용자 정보 업데이트
+    public void updateUserInfo(UserUpdateRequest request) {
+        this.name = request.getName();
+        this.email = request.getEmail();
+        this.position = request.getPosition();
+    }
+
+    // 프로필 이미지 업데이트
+    public void updateProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    // 비밀번호 업데이트
+    public void updatePassword(String password) {
+        this.password = password;
     }
 }
