@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import static com.example.dotdot.global.exception.CommonErrorCode.INTERNAL_SERVER_ERROR;
+
 @Slf4j
 @RestControllerAdvice
 public class ExceptionController {
@@ -18,7 +20,7 @@ public class ExceptionController {
         log.error("처리되지 않은 예외 발생: ", e);
         log.error("에러가 발생한 지점 {}, {}", request.getMethod(), request.getRequestURI());
         ErrorResponse errorResponse = ErrorResponse.of(
-                ErrorCode.INTERNAL_SERVER_ERROR,
+                INTERNAL_SERVER_ERROR,
                 request
         );
         return ResponseEntity
