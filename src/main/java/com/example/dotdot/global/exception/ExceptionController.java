@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -35,6 +37,25 @@ public class ExceptionController {
         ErrorResponse errorResponse = ErrorResponse.of(e.getErrorCode(), request);
         return ResponseEntity
                 .status(e.getErrorCode().getHttpStatus())
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
+        // 첫 번째 필드 에러의 메시지 추출 (여러 개 중 하나만 대표로)
+        FieldError fieldError = e.getBindingResult().getFieldError();
+        String errorMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "입력값이 유효하지 않습니다.";
+
+        log.error("유효성 검사 실패: {}", errorMessage);
+        log.error("에러가 발생한 지점 {}, {}", request.getMethod(), request.getRequestURI());
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+                CommonErrorCode.INVALID_INPUT_VALUE.withDetail(errorMessage),
+                request
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(errorResponse);
     }
 }
