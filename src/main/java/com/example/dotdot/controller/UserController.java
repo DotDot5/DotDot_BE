@@ -9,9 +9,11 @@ import com.example.dotdot.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("api/v1/users")
@@ -40,13 +42,13 @@ public class UserController implements UserControllerSpecification{
 
 
 
-    @PutMapping("/me/profile-image")
-    public ResponseEntity<DataResponse<UserInfoResponse>> updateProfileImage(
+    @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DataResponse<String>> updateProfileImage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam("image") String image) {
+            @RequestPart("file") MultipartFile file) {
         Long userId = userDetails.getId();
-        UserInfoResponse updatedUserInfo = userService.updateProfileImage(userId, image);
-        return ResponseEntity.ok(DataResponse.from(updatedUserInfo));
+        String imageUrl = userService.updateProfileImage(userId, file);
+        return ResponseEntity.ok(DataResponse.from(imageUrl));
     }
 
 

@@ -15,7 +15,8 @@ public enum UserErrorCode implements ErrorCode {
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다.", "USER-003"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 잘못되었습니다.", "USER-004"),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다.", "USER-005"),
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다. 토큰이 없거나 유효하지 않습니다.","USER-006" );
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다. 토큰이 없거나 유효하지 않습니다.","USER-006" ),
+    IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 업로드에 실패했습니다.", "IMAGE-001")
     ;
 
     private final HttpStatus httpStatus;

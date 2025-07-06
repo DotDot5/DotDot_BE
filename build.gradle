@@ -42,6 +42,11 @@ dependencies {
 
 	// Java 8 LocalDateTime 직렬화 지원을 위한 Jackson 모듈
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+	// 이미지 업로드를 위한 google cloud storage 의존성 추가
+	implementation group: 'org.springframework.cloud', name: 'spring-cloud-gcp-starter', version: '1.2.5.RELEASE'
+	implementation group: 'org.springframework.cloud', name: 'spring-cloud-gcp-storage', version: '1.2.5.RELEASE'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'

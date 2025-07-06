@@ -5,13 +5,21 @@ import com.example.dotdot.dto.request.user.PasswordChangeRequest;
 import com.example.dotdot.dto.request.user.UserUpdateRequest;
 import com.example.dotdot.dto.response.user.UserInfoResponse;
 import com.example.dotdot.global.exception.user.EmailAlreadyExistsException;
+import com.example.dotdot.global.exception.user.ImageUploadFailException;
 import com.example.dotdot.global.exception.user.InvalidPasswordException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
 import com.example.dotdot.repository.UserRepository;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.UUID;
 
 import static com.example.dotdot.global.exception.user.UserErrorCode.*;
 
@@ -21,6 +29,13 @@ import static com.example.dotdot.global.exception.user.UserErrorCode.*;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Storage storage; // 이미지 업로드를 위한 GCP Storage 사용
+
+    @Value("${spring.cloud.gcp.storage.bucket}") // application.yml에 써둔 bucket 이름
+    private String bucketName;
+
+    @Value("${spring.cloud.gcp.storage.project-id}")
+    private String projectId;
 
     public UserInfoResponse getUserInfo(Long userId) {
         return UserInfoResponse.from(findUserById(userId));
@@ -41,10 +56,26 @@ public class UserService {
         return UserInfoResponse.from(user);
     }
 
-    public UserInfoResponse updateProfileImage(Long userId, String image) {
+    public String updateProfileImage(Long userId, MultipartFile input) {
         User user = findUserById(userId);
-        user.updateProfileImageUrl(image);
-        return UserInfoResponse.from(user);
+
+        String fileName = UUID.randomUUID().toString(); // UUID를 이용해 고유한 파일 이름 생성
+        String ext = input.getContentType();
+        BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, fileName)
+                .setContentType(ext)
+                .build();
+        try {
+            // GCP Storage에 파일 업로드
+            storage.create(blobInfo, input.getInputStream());
+
+            // 업로드된 파일의 URL 생성
+            String imageUrl = "https://storage.googleapis.com/" + bucketName + "/" + fileName;
+
+            user.updateProfileImageUrl(imageUrl);
+            return imageUrl;
+        } catch (IOException e) {
+            throw new ImageUploadFailException(IMAGE_UPLOAD_FAILED);
+        }
     }
 
     public void updatePassword(Long userId, PasswordChangeRequest request){
