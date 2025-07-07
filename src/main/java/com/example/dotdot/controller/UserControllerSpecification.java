@@ -14,12 +14,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "UserController", description = "User 관련 API")
 public interface UserControllerSpecification {
@@ -64,12 +63,14 @@ public interface UserControllerSpecification {
             @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "존재하지 않는 회원 (USER-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "이미지 업로드에 실패했습니다. (IMAGE-001)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PutMapping("/me/profile-image")
-    public ResponseEntity<DataResponse<UserInfoResponse>> updateProfileImage(
+    @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DataResponse<String>> updateProfileImage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam("image") String image);
+            @RequestPart("file") MultipartFile file);
 
 
 

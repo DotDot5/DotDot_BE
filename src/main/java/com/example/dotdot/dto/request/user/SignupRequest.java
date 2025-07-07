@@ -35,7 +35,7 @@ public class SignupRequest {
                 .email(email)
                 .password(password)
                 .name(name)
-                .profileImageUrl("https://example.com/default-profile.png") // 일단 기본 프로필 이미지 URL 설정
+                .profileImageUrl("basic") // 프로필 이미지 설정 안 했을 경우
                 .position(position)
                 .password(password)
                 .build();
