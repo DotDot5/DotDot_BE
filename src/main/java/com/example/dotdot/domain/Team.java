@@ -48,4 +48,8 @@ public class Team {
     public void updateNotice(String notice) {
         this.notice = notice;
     }
+    public void updateName(String name) {
+        this.name = name;
+    }
+
 }

@@ -1,9 +1,6 @@
 package com.example.dotdot.controller;
 
-import com.example.dotdot.dto.request.team.AddTeamMemberRequest;
-import com.example.dotdot.dto.request.team.CreateTeamRequest;
-import com.example.dotdot.dto.request.team.TeamNoticeRequest;
-import com.example.dotdot.dto.request.team.UserRoleUpdateRequest;
+import com.example.dotdot.dto.request.team.*;
 import com.example.dotdot.dto.response.team.TeamDetailResponse;
 import com.example.dotdot.dto.response.team.TeamMemberResponse;
 import com.example.dotdot.dto.response.team.TeamNoticeResponse;
@@ -98,6 +95,15 @@ public class TeamController implements TeamControllerSpecification{
     ) {
         TeamDetailResponse detail = teamService.getTeamDetail(userDetails.getId(),teamId);
         return ResponseEntity.ok(DataResponse.from(detail));
+    }
+    @PatchMapping("/{teamId}/name")
+    public ResponseEntity<DataResponse<Void>> updateTeamName(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long teamId,
+            @Valid @RequestBody UpdateTeamNameRequest request
+    ){
+        teamService.updateTeamName(userDetails.getId(),teamId, request);
+        return ResponseEntity.ok(DataResponse.ok());
     }
 
 }

@@ -1,9 +1,6 @@
 package com.example.dotdot.controller;
 
-import com.example.dotdot.dto.request.team.AddTeamMemberRequest;
-import com.example.dotdot.dto.request.team.CreateTeamRequest;
-import com.example.dotdot.dto.request.team.TeamNoticeRequest;
-import com.example.dotdot.dto.request.team.UserRoleUpdateRequest;
+import com.example.dotdot.dto.request.team.*;
 import com.example.dotdot.dto.response.team.TeamDetailResponse;
 import com.example.dotdot.dto.response.team.TeamMemberResponse;
 import com.example.dotdot.dto.response.team.TeamNoticeResponse;
@@ -171,5 +168,23 @@ public interface TeamControllerSpecification {
     public ResponseEntity<DataResponse<TeamDetailResponse>> getTeamDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId
+    );
+
+    @Operation(summary = " 팀 이름 수정", description = "해당 팀 워크스페이스의 이름을 수정합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "팀 이름 수정 성공."),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 팀 (TEAM-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "해당 팀에 접근 권한 없음(TEAM-004)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PatchMapping("/{teamId}/name")
+    public ResponseEntity<DataResponse<Void>> updateTeamName(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long teamId,
+            @Valid @RequestBody UpdateTeamNameRequest request
     );
 }

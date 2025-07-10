@@ -3,10 +3,7 @@ package com.example.dotdot.service;
 import com.example.dotdot.domain.Team;
 import com.example.dotdot.domain.User;
 import com.example.dotdot.domain.UserTeam;
-import com.example.dotdot.dto.request.team.AddTeamMemberRequest;
-import com.example.dotdot.dto.request.team.CreateTeamRequest;
-import com.example.dotdot.dto.request.team.TeamNoticeRequest;
-import com.example.dotdot.dto.request.team.UserRoleUpdateRequest;
+import com.example.dotdot.dto.request.team.*;
 import com.example.dotdot.dto.response.team.TeamDetailResponse;
 import com.example.dotdot.dto.response.team.TeamMemberResponse;
 import com.example.dotdot.dto.response.team.TeamNoticeResponse;
@@ -175,6 +172,18 @@ public class TeamServcie {
                 team.getNotice(),
                 members
         );
+    }
+
+    /**
+     * 팀 이름 수정
+     */
+    @Transactional
+    public void updateTeamName(Long userId, Long teamId, UpdateTeamNameRequest request) {
+        User user = getUserOrThrow(userId);
+        Team team = getTeamOrThrow(teamId);
+        checkMembershipOrThrow(user, team);
+
+        team.updateName(request.getTeamName()); // Team 엔티티에 이 메서드가 필요함
     }
 
     private User getUserOrThrow(Long userId) {
