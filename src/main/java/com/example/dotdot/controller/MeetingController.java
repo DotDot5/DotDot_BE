@@ -3,6 +3,7 @@ package com.example.dotdot.controller;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
+import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
@@ -39,4 +40,14 @@ public class MeetingController implements MeetingControllerSpecification{
         List<MeetingListResponse> meetings = meetingService.getMeetingLists(teamId);
         return ResponseEntity.ok(DataResponse.from(meetings));
     }
+
+    @GetMapping("/{meetingId}/preview")
+    public ResponseEntity<DataResponse<MeetingPreviewResponse>> getMeetingPreview(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    ) {
+        MeetingPreviewResponse response = meetingService.getMeetingPreview(meetingId);
+        return ResponseEntity.ok(DataResponse.from(response));
+    }
+
 }

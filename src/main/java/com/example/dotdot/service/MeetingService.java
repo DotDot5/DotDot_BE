@@ -7,9 +7,11 @@ import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
+import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.repository.AgendaRepository;
 import com.example.dotdot.repository.MeetingRepository;
 import com.example.dotdot.repository.ParticipantRepository;
+import com.google.api.gax.rpc.NotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -81,4 +83,16 @@ public class MeetingService {
                 })
                 .toList();
     }
+
+    @Transactional
+    public MeetingPreviewResponse getMeetingPreview(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElse(null);
+
+        List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
+        List<Participant> participants = participantRepository.findAllByMeetingId(meetingId);
+
+        return MeetingPreviewResponse.from(meeting, agendas, participants);
+    }
+
 }

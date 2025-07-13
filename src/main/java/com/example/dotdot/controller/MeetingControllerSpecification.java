@@ -3,6 +3,7 @@ package com.example.dotdot.controller;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
+import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
@@ -53,5 +54,21 @@ public interface MeetingControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId
     );
+
+    @Operation(summary = "회의 정보 조회", description = "회의 정보를 조회합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "회의 상세 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/{meetingId}/preview")
+    ResponseEntity<DataResponse<MeetingPreviewResponse>> getMeetingPreview(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    );
+
 
 }
