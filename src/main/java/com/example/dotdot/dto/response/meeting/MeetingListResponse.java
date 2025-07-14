@@ -1,5 +1,6 @@
 package com.example.dotdot.dto.response.meeting;
 
+import com.example.dotdot.domain.Meeting;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,5 +16,15 @@ public class MeetingListResponse {
     private LocalDateTime meetingAt;
     private int duration;
     private int participantCount;
-    private String status;
+    private Long teamId;
+
+    public static MeetingListResponse from(Meeting meeting) {
+        return MeetingListResponse.builder()
+                .meetingId(meeting.getId())
+                .title(meeting.getTitle())
+                .meetingAt(meeting.getMeetingAt())
+                .duration(meeting.getDuration())
+                .participantCount(0) // 필요한 경우 count 조회해서 전달
+                .build();
+    }
 }

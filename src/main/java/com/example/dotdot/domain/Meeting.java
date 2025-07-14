@@ -18,8 +18,9 @@ public class Meeting {
     @Column(name = "meeting_id")
     private Long id;
 
-    @Column(name = "team_id", nullable = false)
-    private Long teamId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id")
+    private Team team;
 
     @Column(nullable = false)
     private String title;

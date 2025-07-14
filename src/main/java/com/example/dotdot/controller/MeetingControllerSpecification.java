@@ -8,6 +8,7 @@ import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -51,6 +52,8 @@ public interface MeetingControllerSpecification {
     ResponseEntity<DataResponse<List<MeetingListResponse>>> getMeetingListByTeam(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
+
+            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
             @RequestParam(required = false) String status
     );
 
@@ -78,4 +81,22 @@ public interface MeetingControllerSpecification {
             @RequestBody @Valid CreateMeetingRequest request
     );
 
+    @Operation(summary = "나의 회의 목록 조회", description = "현재 로그인한 사용자가 속한 팀들의 회의 목록을 상태와 정렬 기준에 따라 조회합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "정상적으로 회의 목록을 조회함"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<DataResponse<List<MeetingListResponse>>> getMyMeetingList(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+
+            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
+            @RequestParam(required = false) String status,
+
+            @Parameter(description = "정렬 순서 (asc 또는 desc)", example = "desc")
+            @RequestParam(defaultValue = "desc") String sort
+    );
 }

@@ -1,8 +1,6 @@
 package com.example.dotdot.service;
 
-import com.example.dotdot.domain.Agenda;
-import com.example.dotdot.domain.Meeting;
-import com.example.dotdot.domain.Participant;
+import com.example.dotdot.domain.*;
 import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
@@ -10,17 +8,26 @@ import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
+import com.example.dotdot.global.exception.user.UserNotFoundException;
 import com.example.dotdot.repository.AgendaRepository;
 import com.example.dotdot.repository.MeetingRepository;
 import com.example.dotdot.repository.ParticipantRepository;
+import com.example.dotdot.repository.UserRepository;
+import com.example.dotdot.repository.TeamRepository;
+import com.example.dotdot.repository.UserRepository;
+import com.example.dotdot.repository.UserTeamRepository;
 import com.google.api.gax.rpc.NotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
 @Service
 @RequiredArgsConstructor
@@ -28,12 +35,18 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final ParticipantRepository participantRepository;
     private final AgendaRepository agendaRepository;
+    private final TeamRepository teamRepository;
+    private final UserRepository userRepository;
+    private final UserTeamRepository userTeamRepository;
 
     @Transactional
     public Long createMeeting(CreateMeetingRequest request) {
+        Team team = teamRepository.findById(request.getTeamId())
+                .orElseThrow(() -> new IllegalArgumentException("팀을 찾을 수 없습니다."));
+
         Meeting meeting = meetingRepository.save(
                 Meeting.builder()
-                        .teamId(request.getTeamId())
+                        .team(team)
                         .title(request.getTitle())
                         .meetingAt(request.getMeetingAt())
                         .createdAt(LocalDateTime.now())
@@ -148,5 +161,40 @@ public class MeetingService {
         return meetingId;
     }
 
+    @Transactional(readOnly = true)
+    public List<MeetingListResponse> getMyMeetingList(Long userId, String status, String sort) {
+        User user = getUserOrThrow(userId);
 
+        List<Long> teamIds = userTeamRepository.findByUserOrderByTeamCreatedAtAsc(user).stream()
+                .map(ut -> ut.getTeam().getId())
+                .collect(Collectors.toList());
+
+        List<Meeting> meetings = meetingRepository.findByTeamIdIn(teamIds);
+
+        LocalDateTime now = LocalDateTime.now();
+        if ("finished".equalsIgnoreCase(status)) {
+            meetings = meetings.stream()
+                    .filter(m -> m.getMeetingAt().isBefore(now))
+                    .collect(Collectors.toList());
+        } else if ("upcoming".equalsIgnoreCase(status)) {
+            meetings = meetings.stream()
+                    .filter(m -> m.getMeetingAt().isAfter(now))
+                    .collect(Collectors.toList());
+        }
+
+        Comparator<Meeting> comparator = Comparator.comparing(Meeting::getMeetingAt);
+        if ("desc".equalsIgnoreCase(sort)) comparator = comparator.reversed();
+
+        return meetings.stream()
+                .sorted(comparator)
+                .map(MeetingListResponse::from)
+                .collect(Collectors.toList());
+    }
+
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+    }
 }
+

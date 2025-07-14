@@ -58,6 +58,14 @@ public class MeetingController implements MeetingControllerSpecification{
         return ResponseEntity.ok(DataResponse.from(updatedId));
     }
 
-
-
+    @GetMapping("/my")
+    public ResponseEntity<DataResponse<List<MeetingListResponse>>> getMyMeetingList(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "desc") String sort
+    ) {
+        Long userId = userDetails.getId();
+        List<MeetingListResponse> meetings = meetingService.getMyMeetingList(userId, status, sort);
+        return ResponseEntity.ok(DataResponse.from(meetings));
+    }
 }
