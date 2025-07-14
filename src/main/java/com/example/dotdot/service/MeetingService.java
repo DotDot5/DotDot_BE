@@ -54,7 +54,6 @@ public class MeetingService {
             );
         }
 
-        // 3. 안건 저장
         List<AgendaDto> agendaList = request.getAgendas();
         for (AgendaDto dto : agendaList) {
             agendaRepository.save(
@@ -109,5 +108,45 @@ public class MeetingService {
 
         return MeetingPreviewResponse.from(meeting, agendas, participants);
     }
+
+    @Transactional
+    public Long updateMeeting(Long meetingId, CreateMeetingRequest request) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        meeting.update(
+                request.getTitle(),
+                request.getMeetingAt(),
+                request.getMeetingMethod(),
+                request.getNote()
+        );
+
+        participantRepository.deleteAllByMeetingId(meetingId);
+        agendaRepository.deleteAllByMeetingId(meetingId);
+
+        for (ParticipantDto dto : request.getParticipants()) {
+            participantRepository.save(
+                    Participant.builder()
+                            .meeting(meeting)
+                            .userId(dto.getUserId())
+                            .part(dto.getPart())
+                            .speakerIndex(dto.getSpeakerIndex())
+                            .build()
+            );
+        }
+
+        for (AgendaDto dto : request.getAgendas()) {
+            agendaRepository.save(
+                    Agenda.builder()
+                            .meeting(meeting)
+                            .agenda(dto.getAgenda())
+                            .body(dto.getBody())
+                            .build()
+            );
+        }
+
+        return meetingId;
+    }
+
 
 }

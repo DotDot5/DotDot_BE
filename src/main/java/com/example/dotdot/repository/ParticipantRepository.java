@@ -8,4 +8,5 @@ import java.util.List;
 public interface ParticipantRepository extends JpaRepository<Participant, Long> {
     List<Participant> findAllByMeetingId(Long meetingId);
     int countByMeetingId(Long meetingId);
+    void deleteAllByMeetingId(Long MeetingId);
 }

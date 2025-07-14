@@ -17,10 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -72,5 +69,13 @@ public interface MeetingControllerSpecification {
             @PathVariable Long meetingId
     );
 
+    @Operation(summary = "회의 수정", description = "회의 제목, 시간, 방식, 노트, 참여자, 안건을 수정합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @PutMapping("/{meetingId}")
+    ResponseEntity<DataResponse<Long>> updateMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody @Valid CreateMeetingRequest request
+    );
 
 }

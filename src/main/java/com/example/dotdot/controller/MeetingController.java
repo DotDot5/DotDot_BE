@@ -26,8 +26,7 @@ public class MeetingController implements MeetingControllerSpecification{
     @Override
     public ResponseEntity<DataResponse<CreateMeetingResponse>> createMeeting(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody CreateMeetingRequest request
-    ) {
+            @Valid @RequestBody CreateMeetingRequest request) {
         Long meetingId = meetingService.createMeeting(request);
         return ResponseEntity.ok(DataResponse.from(new CreateMeetingResponse(meetingId)));
     }
@@ -36,8 +35,7 @@ public class MeetingController implements MeetingControllerSpecification{
     public ResponseEntity<DataResponse<List<MeetingListResponse>>> getMeetingListByTeam(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
-            @RequestParam(required = false) String status
-    ) {
+            @RequestParam(required = false) String status) {
         List<MeetingListResponse> meetings = meetingService.getMeetingLists(teamId, status);
         return ResponseEntity.ok(DataResponse.from(meetings));
     }
@@ -45,10 +43,21 @@ public class MeetingController implements MeetingControllerSpecification{
     @GetMapping("/{meetingId}/preview")
     public ResponseEntity<DataResponse<MeetingPreviewResponse>> getMeetingPreview(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long meetingId
-    ) {
+            @PathVariable Long meetingId) {
         MeetingPreviewResponse response = meetingService.getMeetingPreview(meetingId);
         return ResponseEntity.ok(DataResponse.from(response));
     }
+
+    @PutMapping("/{meetingId}")
+    @Override
+    public ResponseEntity<DataResponse<Long>> updateMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody @Valid CreateMeetingRequest request) {
+        Long updatedId = meetingService.updateMeeting(meetingId, request);
+        return ResponseEntity.ok(DataResponse.from(updatedId));
+    }
+
+
 
 }

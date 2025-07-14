@@ -51,4 +51,12 @@ public class Meeting {
     public enum MeetingMethod {
         RECORD, REALTIME
     }
+
+    public void update(String title, LocalDateTime meetingAt, MeetingMethod meetingMethod, String note) {
+        this.title = title;
+        this.meetingAt = meetingAt;
+        this.meetingMethod = meetingMethod;
+        this.note = note;
+    }
+
 }
