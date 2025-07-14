@@ -41,7 +41,8 @@ public class Meeting {
     @Column(name = "meeting_method", nullable = false)
     private MeetingMethod meetingMethod;
 
-    private Integer duration;
+    @Builder.Default
+    private int duration = 0;
 
     @Column(name = "audio_id")
     private Long audioId;

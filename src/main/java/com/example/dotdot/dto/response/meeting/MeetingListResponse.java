@@ -24,7 +24,8 @@ public class MeetingListResponse {
                 .title(meeting.getTitle())
                 .meetingAt(meeting.getMeetingAt())
                 .duration(meeting.getDuration())
-                .participantCount(0) // 필요한 경우 count 조회해서 전달
+                .participantCount(0)
+                .teamId(meeting.getTeam() != null ? meeting.getTeam().getId() : null)
                 .build();
     }
 }
