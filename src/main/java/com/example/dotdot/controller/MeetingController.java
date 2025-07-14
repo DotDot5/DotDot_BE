@@ -35,9 +35,10 @@ public class MeetingController implements MeetingControllerSpecification{
     @GetMapping("/{teamId}/list")
     public ResponseEntity<DataResponse<List<MeetingListResponse>>> getMeetingListByTeam(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long teamId
+            @PathVariable Long teamId,
+            @RequestParam(required = false) String status
     ) {
-        List<MeetingListResponse> meetings = meetingService.getMeetingLists(teamId);
+        List<MeetingListResponse> meetings = meetingService.getMeetingLists(teamId, status);
         return ResponseEntity.ok(DataResponse.from(meetings));
     }
 

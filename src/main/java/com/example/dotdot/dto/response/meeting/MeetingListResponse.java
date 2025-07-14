@@ -15,4 +15,5 @@ public class MeetingListResponse {
     private LocalDateTime meetingAt;
     private int duration;
     private int participantCount;
+    private String status;
 }

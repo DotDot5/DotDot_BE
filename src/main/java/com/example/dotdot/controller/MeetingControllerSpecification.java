@@ -20,6 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -52,7 +53,8 @@ public interface MeetingControllerSpecification {
     @GetMapping("/{teamId}/list")
     ResponseEntity<DataResponse<List<MeetingListResponse>>> getMeetingListByTeam(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long teamId
+            @PathVariable Long teamId,
+            @RequestParam(required = false) String status
     );
 
     @Operation(summary = "회의 정보 조회", description = "회의 정보를 조회합니다.")
