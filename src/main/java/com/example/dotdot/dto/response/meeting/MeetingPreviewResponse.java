@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 @Builder
 public class MeetingPreviewResponse {
     private Long meetingId;
+    private Long teamId;
     private String title;
     private LocalDateTime meetingAt;
     private String meetingMethod;
@@ -30,6 +31,7 @@ public class MeetingPreviewResponse {
     public static MeetingPreviewResponse from(Meeting meeting, List<Agenda> agendas, List<Participant> participants) {
         return MeetingPreviewResponse.builder()
                 .meetingId(meeting.getId())
+                .teamId(meeting.getTeam().getId())
                 .title(meeting.getTitle())
                 .meetingAt(meeting.getMeetingAt())
                 .meetingMethod(meeting.getMeetingMethod().name())
