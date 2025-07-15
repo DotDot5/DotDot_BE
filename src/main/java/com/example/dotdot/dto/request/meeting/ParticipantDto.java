@@ -14,12 +14,14 @@ public class ParticipantDto {
     private Long userId;
     private String part;
     private Integer speakerIndex;
+    private String userName;
 
     public static ParticipantDto from(Participant participant) {
         return ParticipantDto.builder()
-                .userId(participant.getUserId())
+                .userId(participant.getUser().getId())
                 .part(participant.getPart())
                 .speakerIndex(participant.getSpeakerIndex())
+                .userName(participant.getUser().getName())
                 .build();
     }
 }

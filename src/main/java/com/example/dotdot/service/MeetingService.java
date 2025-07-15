@@ -56,11 +56,15 @@ public class MeetingService {
         );
 
         List<ParticipantDto> participantList = request.getParticipants();
-        for (ParticipantDto dto : participantList) {
+        for (ParticipantDto dto : participantList)
+        {
+            User user = userRepository.findById(dto.getUserId())
+                    .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+
             participantRepository.save(
                     Participant.builder()
                             .meeting(meeting)
-                            .userId(dto.getUserId())
+                            .user(user)
                             .part(dto.getPart())
                             .speakerIndex(dto.getSpeakerIndex())  // 선택
                             .build()
@@ -96,6 +100,14 @@ public class MeetingService {
                     }
                     return true; // 필터 없으면 전체 반환
                 })
+                .sorted((m1, m2) -> {
+                    if ("finished".equalsIgnoreCase(statusFilter)) {
+                        return m2.getMeetingAt().compareTo(m1.getMeetingAt()); // 내림차순
+                    } else if ("upcoming".equalsIgnoreCase(statusFilter)) {
+                        return m1.getMeetingAt().compareTo(m2.getMeetingAt()); // 오름차순
+                    }
+                    return 0;
+                })
                 .map(meeting -> {
                     int count = participantRepository.countByMeetingId(meeting.getId());
                     String status = now.isBefore(meeting.getMeetingAt()) ? "upcoming" :
@@ -106,6 +118,8 @@ public class MeetingService {
                             .meetingAt(meeting.getMeetingAt())
                             .duration(meeting.getDuration())
                             .participantCount(count)
+                            .teamId(meeting.getTeam().getId())
+                            .teamName(meeting.getTeam().getName())
                             .build();
                 })
                 .toList();
@@ -138,10 +152,13 @@ public class MeetingService {
         agendaRepository.deleteAllByMeetingId(meetingId);
 
         for (ParticipantDto dto : request.getParticipants()) {
+            User user = userRepository.findById(dto.getUserId())
+                    .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+
             participantRepository.save(
                     Participant.builder()
                             .meeting(meeting)
-                            .userId(dto.getUserId())
+                            .user(user)
                             .part(dto.getPart())
                             .speakerIndex(dto.getSpeakerIndex())
                             .build()

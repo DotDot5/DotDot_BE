@@ -17,6 +17,7 @@ public class MeetingListResponse {
     private int duration;
     private int participantCount;
     private Long teamId;
+    private String teamName;
 
     public static MeetingListResponse from(Meeting meeting) {
         return MeetingListResponse.builder()
@@ -26,6 +27,7 @@ public class MeetingListResponse {
                 .duration(meeting.getDuration())
                 .participantCount(0)
                 .teamId(meeting.getTeam() != null ? meeting.getTeam().getId() : null)
+                .teamName(meeting.getTeam().getName())
                 .build();
     }
 }
