@@ -46,6 +46,15 @@ dependencies {
 	// 이미지 업로드를 위한 google cloud storage 의존성 추가
 	implementation group: 'org.springframework.cloud', name: 'spring-cloud-gcp-starter', version: '1.2.5.RELEASE'
 	implementation group: 'org.springframework.cloud', name: 'spring-cloud-gcp-storage', version: '1.2.5.RELEASE'
+	// gpt
+	implementation 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
+
+	// webflux
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// redis
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
 
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
