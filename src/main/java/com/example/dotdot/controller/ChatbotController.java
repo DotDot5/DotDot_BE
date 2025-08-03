@@ -6,6 +6,7 @@ import com.example.dotdot.dto.response.chatbot.ChatResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.service.ChatRedisService;
 import com.example.dotdot.service.ChatbotService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +23,7 @@ public class ChatbotController implements ChatbotControllerSpecification{
     private final ChatRedisService  chatRedisService;
 
     @PostMapping("/ask")
-    public ResponseEntity<DataResponse<ChatResponse>> ask(@RequestBody ChatRequest request) {
+    public ResponseEntity<DataResponse<ChatResponse>> ask(@RequestBody @Valid ChatRequest request) {
         String answer = chatbotService.askQuestion(request.getMeetingId(), request.getQuestion());
         return ResponseEntity.ok(DataResponse.from(ChatResponse.of(answer)));
     }

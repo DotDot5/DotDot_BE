@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,7 +34,7 @@ public interface ChatbotControllerSpecification {
     })
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/ask")
-    ResponseEntity<DataResponse<ChatResponse>> ask(@RequestBody ChatRequest request);
+    ResponseEntity<DataResponse<ChatResponse>> ask(@RequestBody @Valid ChatRequest request);
 
 
     @Operation(summary = "대화 히스토리 조회", description = "해당 회의의 전체 대화 내용을 조회합니다.")
