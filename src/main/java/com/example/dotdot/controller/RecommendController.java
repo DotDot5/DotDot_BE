@@ -25,7 +25,7 @@ public class RecommendController implements RecommendControllerSpecification{
             @RequestParam(defaultValue = "5") int limit
     ){
         List<GoogleSearchResponse> generated = recommendationService.generateRecommendations(userDetails.getId(),meetingId, limit);
-        List<Recommendation> saved = recommendationService.saveRecommendations(userDetails.getId(),meetingId, generated);
+        recommendationService.saveRecommendations(userDetails.getId(),meetingId, generated);
         return ResponseEntity.ok(DataResponse.ok());
     }
 

@@ -13,5 +13,6 @@ public class GoogleSearchApiResponse {
         private String title;
         private String link;
         private String snippet;
+//        private String publishedDate;
     }
 }

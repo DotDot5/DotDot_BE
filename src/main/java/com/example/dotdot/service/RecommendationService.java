@@ -2,24 +2,22 @@ package com.example.dotdot.service;
 
 import com.example.dotdot.domain.*;
 import com.example.dotdot.dto.response.recommend.GoogleSearchResponse;
-import com.example.dotdot.global.client.GoogleSearchClient;
+import com.example.dotdot.global.client.OpenAIRecommendClient;
+import com.example.dotdot.global.exception.AppException;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
+import com.example.dotdot.global.exception.search.GoogleSearchErrorCode;
 import com.example.dotdot.global.exception.team.ForbiddenTeamAccessException;
-import com.example.dotdot.global.exception.team.TeamNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
-import com.example.dotdot.global.util.KoreanTextProcessor;
 import com.example.dotdot.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.BreakIterator;
 import java.util.*;
 import java.util.stream.IntStream;
 
 import static com.example.dotdot.global.exception.meeting.MeetingErrorCode.MEETING_NOT_FOUND;
 import static com.example.dotdot.global.exception.team.TeamErrorCode.FORBIDDEN_TEAM_ACCESS;
-import static com.example.dotdot.global.exception.team.TeamErrorCode.TEAM_NOT_FOUND;
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
 @RequiredArgsConstructor
@@ -32,61 +30,36 @@ public class RecommendationService {
     private final GoogleSearchService googleSearchService;
     private final UserRepository userRepository;
     private final UserTeamRepository userTeamRepository;
-    private final KoreanTextProcessor koreanTextProcessor;
+    private final OpenAIRecommendClient openAIRecommendClient;
 
 
     //회의 정보를 기반으로 키워드 추출 후 자료 생성
     public List<GoogleSearchResponse> generateRecommendations(Long userId, Long meetingId, int totalLimit) {
+
         User user = getUserOrThrow(userId);
         Meeting meeting = getMeetingOrThrow(meetingId);
         Team team = meeting.getTeam();
         checkMembershipOrThrow(user, team);
 
+        String meetingSummary=meeting.getSummary();
         List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
 
-        List<String> queryList = new ArrayList<>();
+        List<String> queries = Collections.emptyList();
 
-        Set<String> stopwords = Set.of("의", "가", "이", "은", "는", "들", "과", "도","을", "를", "에", "으로", "에서");
+        try{
+            queries = openAIRecommendClient.generateSearchQueries(agendas, meetingSummary);
 
-        for (Agenda agenda : agendas) {
-            String agendaText = agenda.getAgenda() + " " + Optional.ofNullable(agenda.getBody()).orElse("");
-            List<String> sentences = splitIntoSentences(agendaText);
-            List<String> keySentences = extractKeySentences(sentences);
-
-            for (String sentence : keySentences) {
-                List<String> nouns = koreanTextProcessor.extractNouns(sentence);
-                List<String> filtered = nouns.stream()
-                        .filter(word -> !stopwords.contains(word))
-                        .toList();
-                if (!filtered.isEmpty()) {
-                    queryList.add(String.join(" ", filtered));
-                }
-            }
+        }catch(Exception e){
+            throw new AppException(GoogleSearchErrorCode.GPT_API_ERROR);
         }
 
-        // 요약도 동일하게 처리
-        if (meeting.getSummary() != null && !meeting.getSummary().isBlank()) {
-            List<String> summarySentences = splitIntoSentences(meeting.getSummary());
-            List<String> keySummarySentences = extractKeySentences(summarySentences);
-
-            for (String sentence : keySummarySentences) {
-                List<String> nouns = koreanTextProcessor.extractNouns(sentence);
-                List<String> filtered = nouns.stream()
-                        .filter(word -> !stopwords.contains(word))
-                        .toList();
-                if (!filtered.isEmpty()) {
-                    queryList.add(String.join(" ", filtered));
-                }
-            }
+        if (queries.isEmpty()) {
+            return List.of();
         }
-
-        int maxQueryCount = 6;
-        queryList = sampleQueriesEvenly(queryList, maxQueryCount);
-
-        int perQueryLimit = Math.max(1, totalLimit / queryList.size());
+        int perQueryLimit = (int) Math.ceil((double) totalLimit / queries.size());
 
         List<GoogleSearchResponse> combinedResults = new ArrayList<>();
-        for (String query : queryList) {
+        for (String query : queries) {
             combinedResults.addAll(googleSearchService.searchResources(query, perQueryLimit));
         }
 
@@ -98,7 +71,7 @@ public class RecommendationService {
 
     // 추천 자료 저장
     @Transactional
-    public List<Recommendation> saveRecommendations(Long userId, Long meetingId, List<GoogleSearchResponse> results) {
+    public void saveRecommendations(Long userId, Long meetingId, List<GoogleSearchResponse> results) {
         User user = getUserOrThrow(userId);
 
         Meeting meeting = getMeetingOrThrow(meetingId);
@@ -117,7 +90,7 @@ public class RecommendationService {
                             i // priority
                     );
                 }).toList();
-        return recommendationRepository.saveAll(recommendations);
+        recommendationRepository.saveAll(recommendations);
     }
 
     @Transactional(readOnly = true)
@@ -136,42 +109,6 @@ public class RecommendationService {
                         .build())
                 .toList();
     }
-
-    private List<String> sampleQueriesEvenly(List<String> queries, int maxSamples) {
-        int size = queries.size();
-        if (size <= maxSamples) return queries;
-
-        List<String> sampled = new ArrayList<>(maxSamples);
-        double step = (double) size / maxSamples;
-
-        for (int i = 0; i < maxSamples; i++) {
-            int index = (int) Math.floor(i * step);
-            sampled.add(queries.get(index));
-        }
-        return sampled;
-    }
-
-
-    public List<String> splitIntoSentences(String text) {
-        List<String> sentences = new ArrayList<>();
-        BreakIterator iterator = BreakIterator.getSentenceInstance(Locale.KOREAN);
-        iterator.setText(text);
-        int start = iterator.first();
-        for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-            sentences.add(text.substring(start, end).trim());
-        }
-        return sentences;
-    }
-    public List<String> extractKeySentences(List<String> sentences) {
-        List<String> keySentences = new ArrayList<>();
-        for (String sentence : sentences) {
-            if (sentence.length() > 10) {
-                keySentences.add(sentence);
-            }
-        }
-        return keySentences;
-    }
-
 
     private User getUserOrThrow(Long userId) {
         return userRepository.findById(userId)
