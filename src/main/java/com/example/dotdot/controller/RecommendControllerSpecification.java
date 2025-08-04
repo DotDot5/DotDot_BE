@@ -31,7 +31,7 @@ public interface RecommendControllerSpecification {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "존재하지 않는 회원 (USER-001) / 존재하지 않는 회의 (MEETING-001)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "Google 검색 응답이 null (GOOGLE-001)",
+            @ApiResponse(responseCode = "500", description = "GPT 호출 중 오류가 발생(GOOGLE-003) / Google 검색 응답이 null (GOOGLE-001)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "해당 팀에 접근 권한 없음(TEAM-004)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
