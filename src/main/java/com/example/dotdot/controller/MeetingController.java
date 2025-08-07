@@ -1,11 +1,11 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
-import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest; // 별도의 DTO 파일로 분리했다고 가정
+import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
 import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse; // ⭐️ 새로 추가된 GET 응답 DTO
+import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
@@ -93,14 +93,12 @@ public class MeetingController implements MeetingControllerSpecification {
         }
     }
 
-    // ⭐️⭐️⭐️ STT 결과를 조회하는 GET API를 추가합니다. ⭐️⭐️⭐️
     @GetMapping("/{meetingId}/stt-result")
     public ResponseEntity<DataResponse<MeetingSttResultResponse>> getMeetingSttResult(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("meetingId") Long meetingId) {
         try {
             System.out.println("Received request to get STT result for Meeting ID: " + meetingId);
-            // MeetingService에서 STT 결과를 조회하는 메서드를 호출
             MeetingSttResultResponse result = meetingService.getMeetingSttResult(meetingId);
 
             return ResponseEntity.ok(DataResponse.from(result));

@@ -51,8 +51,6 @@ public class SecurityConfig {
                                 "/api/v1/auth/reissue",
                                 "/api/v1/auth/check-email"
                         ).permitAll()
-                        // ⭐️⭐️⭐️ 이 부분을 다음과 같이 수정합니다. ⭐️⭐️⭐️
-                        // '/api/v1/meetings/*/stt-result' 로 변경하여 MeetingController의 RequestMapping과 일치시킵니다.
                         .requestMatchers(HttpMethod.GET, "/api/v1/meetings/*/stt-result").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/meetings/*/stt-result").permitAll()
                         .anyRequest().authenticated()

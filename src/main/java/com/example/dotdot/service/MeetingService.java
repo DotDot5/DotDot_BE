@@ -6,7 +6,7 @@ import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse; // ⭐️ 새로 추가된 GET 응답 DTO
+import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
@@ -216,15 +216,11 @@ public class MeetingService {
         meetingRepository.save(meeting);
     }
 
-    // ⭐️⭐️⭐️ STT 결과를 조회하는 메서드를 추가합니다. ⭐️⭐️⭐️
     @Transactional(readOnly = true)
     public MeetingSttResultResponse getMeetingSttResult(Long meetingId) {
-        // meetingId로 회의를 찾습니다. 없으면 예외를 던집니다.
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
 
-        // 조회된 meeting 객체에서 필요한 정보를 추출하여 응답 DTO를 생성합니다.
-        // 이 응답 DTO는 Next.js route.ts로 반환됩니다.
         return MeetingSttResultResponse.builder()
                 .meetingId(meeting.getId())
                 .transcript(meeting.getTranscript())
