@@ -6,6 +6,7 @@ import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse; // ⭐️ 새로 추가된 GET 응답 DTO
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
@@ -14,12 +15,10 @@ import com.example.dotdot.repository.MeetingRepository;
 import com.example.dotdot.repository.ParticipantRepository;
 import com.example.dotdot.repository.UserRepository;
 import com.example.dotdot.repository.TeamRepository;
-import com.example.dotdot.repository.UserRepository;
 import com.example.dotdot.repository.UserTeamRepository;
-import com.google.api.gax.rpc.NotFoundException;
+
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -66,7 +65,7 @@ public class MeetingService {
                             .meeting(meeting)
                             .user(user)
                             .part(dto.getPart())
-                            .speakerIndex(dto.getSpeakerIndex())  // 선택
+                            .speakerIndex(dto.getSpeakerIndex())
                             .build()
             );
         }
@@ -98,20 +97,18 @@ public class MeetingService {
                     } else if ("finished".equalsIgnoreCase(statusFilter)) {
                         return now.isAfter(endTime);
                     }
-                    return true; // 필터 없으면 전체 반환
+                    return true;
                 })
                 .sorted((m1, m2) -> {
                     if ("finished".equalsIgnoreCase(statusFilter)) {
-                        return m2.getMeetingAt().compareTo(m1.getMeetingAt()); // 내림차순
+                        return m2.getMeetingAt().compareTo(m1.getMeetingAt());
                     } else if ("upcoming".equalsIgnoreCase(statusFilter)) {
-                        return m1.getMeetingAt().compareTo(m2.getMeetingAt()); // 오름차순
+                        return m1.getMeetingAt().compareTo(m2.getMeetingAt());
                     }
                     return 0;
                 })
                 .map(meeting -> {
                     int count = participantRepository.countByMeetingId(meeting.getId());
-                    String status = now.isBefore(meeting.getMeetingAt()) ? "upcoming" :
-                            now.isAfter(meeting.getMeetingAt().plusMinutes(meeting.getDuration())) ? "finished" : "in_progress";
                     return MeetingListResponse.builder()
                             .meetingId(meeting.getId())
                             .title(meeting.getTitle())
@@ -208,10 +205,36 @@ public class MeetingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void updateMeetingSttResult(Long meetingId, Integer duration, String transcript) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        meeting.setDuration(duration);
+        meeting.setTranscript(transcript);
+
+        meetingRepository.save(meeting);
+    }
+
+    // ⭐️⭐️⭐️ STT 결과를 조회하는 메서드를 추가합니다. ⭐️⭐️⭐️
+    @Transactional(readOnly = true)
+    public MeetingSttResultResponse getMeetingSttResult(Long meetingId) {
+        // meetingId로 회의를 찾습니다. 없으면 예외를 던집니다.
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        // 조회된 meeting 객체에서 필요한 정보를 추출하여 응답 DTO를 생성합니다.
+        // 이 응답 DTO는 Next.js route.ts로 반환됩니다.
+        return MeetingSttResultResponse.builder()
+                .meetingId(meeting.getId())
+                .transcript(meeting.getTranscript())
+                .duration(meeting.getDuration())
+                .build();
+    }
+
 
     private User getUserOrThrow(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
 }
-

@@ -5,6 +5,7 @@ import com.example.dotdot.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -38,11 +39,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(Customizer.withDefaults()) // swagger 설정하다가 추가
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/swagger", "/swagger-ui.html", "/swagger-ui/**", "/api-docs", "/api-docs/**", "/v3/api-docs/**") // swagger 허용
+                        .requestMatchers("/swagger", "/swagger-ui.html", "/swagger-ui/**", "/api-docs", "/api-docs/**", "/v3/api-docs/**")
                         .permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/login",
@@ -50,13 +51,15 @@ public class SecurityConfig {
                                 "/api/v1/auth/reissue",
                                 "/api/v1/auth/check-email"
                         ).permitAll()
+                        // ⭐️⭐️⭐️ 이 부분을 다음과 같이 수정합니다. ⭐️⭐️⭐️
+                        // '/api/v1/meetings/*/stt-result' 로 변경하여 MeetingController의 RequestMapping과 일치시킵니다.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/meetings/*/stt-result").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/meetings/*/stt-result").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(customAuthenticationEntryPoint) // 인증 실패 시 처리할 EntryPoint
+                        .authenticationEntryPoint(customAuthenticationEntryPoint)
                 )
-                // jwtAuthenticationFilter를 먼저 하고 UsernamePasswordAuthenticationFilter
-                // jwtAuthenticationFilter에서 JWT 토큰 확인하고 인증 처리
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
