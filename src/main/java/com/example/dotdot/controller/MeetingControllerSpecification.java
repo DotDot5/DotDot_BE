@@ -4,6 +4,7 @@ import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
@@ -99,4 +100,41 @@ public interface MeetingControllerSpecification {
             @Parameter(description = "정렬 순서 (asc 또는 desc)", example = "desc")
             @RequestParam(defaultValue = "desc") String sort
     );
+
+    @Operation(
+            summary = "회의 요약 생성",
+            description = "회의 transcript를 기반으로 요약을 생성하고 저장함"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "요약 생성 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<MeetingSummaryResponse> summarize(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
+    );
+
+
+    @Operation(
+            summary = "회의 요약 조회",
+            description = "저장된 회의 요약을 조회함"
+    )
+    @SecurityRequirement(name = "bearerAuth") // 공개로 할 거면 이 줄 빼기
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "요약 조회 성공"),
+            @ApiResponse(responseCode = "204", description = "요약 없음"),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<MeetingSummaryResponse> getSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
+    );
+
 }
