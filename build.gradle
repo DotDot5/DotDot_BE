@@ -64,6 +64,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+	runtimeOnly "io.netty:netty-resolver-dns-native-macos:4.1.100.Final:osx-aarch_64"
 }
 
 tasks.named('test') {
