@@ -31,7 +31,7 @@ public class Meeting {
     @Lob
     private String transcript;
 
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String summary;
 
     @Column(name = "created_at")
