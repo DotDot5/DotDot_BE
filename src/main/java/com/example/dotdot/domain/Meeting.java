@@ -34,6 +34,14 @@ public class Meeting {
     @Column(columnDefinition = "TEXT")
     private String summary;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "summary_status", nullable = false)
+    @Builder.Default
+    private SummaryStatus summaryStatus = SummaryStatus.NOT_STARTED;
+
+    @Column(name = "summary_updated_at")
+    private LocalDateTime summaryUpdatedAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -52,6 +60,10 @@ public class Meeting {
 
     public enum MeetingMethod {
         RECORD, REALTIME
+    }
+
+    public enum SummaryStatus {
+        NOT_STARTED, IN_PROGRESS, COMPLETED, FAILED
     }
 
     public void update(String title, LocalDateTime meetingAt, MeetingMethod meetingMethod, String note) {

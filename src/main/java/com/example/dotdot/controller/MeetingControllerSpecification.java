@@ -1,10 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
-import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
-import com.example.dotdot.dto.response.meeting.MeetingListResponse;
-import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
+import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
@@ -133,6 +130,24 @@ public interface MeetingControllerSpecification {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     ResponseEntity<MeetingSummaryResponse> getSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
+    );
+
+    @Operation(
+            summary = "회의 요약 상태 조회",
+            description = "요약 작업의 현재 상태를 조회합니다. (NOT_STARTED, IN_PROGRESS, COMPLETED, FAILED)"
+    )
+    @SecurityRequirement(name = "bearerAuth") // 공개로 할 거면 이 줄 제거
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상태 조회 성공",
+                    content = @Content(schema = @Schema(implementation = DataResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<DataResponse<MeetingSummaryStatusResponse>> getSummaryStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
     );

@@ -1,10 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
-import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
-import com.example.dotdot.dto.response.meeting.MeetingListResponse;
-import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
+import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
@@ -92,5 +89,15 @@ public class MeetingController implements MeetingControllerSpecification{
         }
         return ResponseEntity.ok(new MeetingSummaryResponse(meetingId, summary));
     }
+
+    @GetMapping("/{meetingId}/summary/status")
+    public ResponseEntity<DataResponse<MeetingSummaryStatusResponse>> getSummaryStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    ) {
+        var res = meetingService.getSummaryStatus(meetingId);
+        return ResponseEntity.ok(DataResponse.from(res));
+    }
+
 
 }
