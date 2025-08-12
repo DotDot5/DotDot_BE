@@ -29,9 +29,11 @@ public class Meeting {
     private LocalDateTime meetingAt;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String transcript;
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String summary;
 
     @Enumerated(EnumType.STRING)
