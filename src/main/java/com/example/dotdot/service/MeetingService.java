@@ -6,6 +6,9 @@ import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
+import com.example.dotdot.global.client.OpenAISummaryClient;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
@@ -38,6 +41,7 @@ public class MeetingService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final UserTeamRepository userTeamRepository;
+    private final OpenAISummaryClient summaryClient;
 
     @Transactional
     public Long createMeeting(CreateMeetingRequest request) {
@@ -213,5 +217,69 @@ public class MeetingService {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
+
+    @Transactional
+    public String summarizeMeeting(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        String transcript = meeting.getTranscript();
+        if (transcript == null || transcript.isBlank()) {
+            meeting.setSummaryStatus(Meeting.SummaryStatus.NOT_STARTED);
+            meeting.setSummaryUpdatedAt(LocalDateTime.now());
+            throw new IllegalStateException("회의 transcript가 없습니다. 업로드 후 다시 시도하세요.");
+        }
+
+        // 상태: 진행중
+        meeting.setSummaryStatus(Meeting.SummaryStatus.IN_PROGRESS);
+        meeting.setSummaryUpdatedAt(LocalDateTime.now());
+
+        try {
+            // Agenda까지 합쳐서 요약하기
+            List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
+            StringBuilder agendaText = new StringBuilder("회의 안건 목록:\n");
+            for (Agenda a : agendas) {
+                agendaText.append("- ").append(a.getAgenda()).append("\n");
+                if (a.getBody() != null && !a.getBody().isBlank()) {
+                    agendaText.append("  내용: ").append(a.getBody()).append("\n");
+                }
+            }
+            String fullText = transcript + "\n\n" + agendaText;
+
+            String summary = summaryClient.summarize(fullText);
+
+            meeting.setSummary(summary);
+            meeting.setSummaryStatus(Meeting.SummaryStatus.COMPLETED);
+            meeting.setSummaryUpdatedAt(LocalDateTime.now());
+            return summary;
+
+        } catch (Exception e) {
+            meeting.setSummaryStatus(Meeting.SummaryStatus.FAILED);
+            meeting.setSummaryUpdatedAt(LocalDateTime.now());
+            throw e;
+        }
+    }
+
+
+    @Transactional(readOnly = true)
+    public String getMeetingSummary(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        return meeting.getSummary();
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingSummaryStatusResponse getSummaryStatus(Long meetingId) {
+        Meeting m = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        return new MeetingSummaryStatusResponse(
+                m.getId(),
+                m.getSummaryStatus().name(),
+                m.getSummaryStatus() == Meeting.SummaryStatus.COMPLETED ? m.getSummary() : null,
+                m.getSummaryUpdatedAt() == null ? null : m.getSummaryUpdatedAt().toString()
+        );
+    }
+
 }
 

@@ -8,5 +8,4 @@ import java.util.List;
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     List<Meeting> findAllByTeamId(Long teamId);
     List<Meeting> findByTeamIdIn(List<Long> teamIds);
-
 }

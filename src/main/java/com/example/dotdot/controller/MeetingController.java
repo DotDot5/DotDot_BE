@@ -1,9 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
-import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
-import com.example.dotdot.dto.response.meeting.MeetingListResponse;
-import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
@@ -68,4 +66,38 @@ public class MeetingController implements MeetingControllerSpecification{
         List<MeetingListResponse> meetings = meetingService.getMyMeetingList(userId, status, sort);
         return ResponseEntity.ok(DataResponse.from(meetings));
     }
+
+    @Override
+    @PostMapping("/{meetingId}/summarize")
+    public ResponseEntity<MeetingSummaryResponse> summarize(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    ) {
+        String summary = meetingService.summarizeMeeting(meetingId);
+        return ResponseEntity.ok(new MeetingSummaryResponse(meetingId, summary));
+    }
+
+    @Override
+    @GetMapping("/{meetingId}/summary")
+    public ResponseEntity<MeetingSummaryResponse> getSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    ) {
+        String summary = meetingService.getMeetingSummary(meetingId);
+        if (summary == null || summary.isBlank()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(new MeetingSummaryResponse(meetingId, summary));
+    }
+
+    @GetMapping("/{meetingId}/summary/status")
+    public ResponseEntity<DataResponse<MeetingSummaryStatusResponse>> getSummaryStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    ) {
+        var res = meetingService.getSummaryStatus(meetingId);
+        return ResponseEntity.ok(DataResponse.from(res));
+    }
+
+
 }

@@ -22,9 +22,11 @@ public class Agenda {
     @JoinColumn(name = "meeting_id", nullable = false)
     private Meeting meeting;
 
-    @Column(name = "agenda", columnDefinition = "TEXT",nullable = false)
+    @Lob
+    @Column(name = "agenda", columnDefinition = "LONGTEXT",nullable = false)
     private String agenda;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String body;
 }
