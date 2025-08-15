@@ -18,6 +18,7 @@ public interface UserTeamRepository extends JpaRepository<UserTeam, Long> {
     //역할 변경 시 활용할 특정 관계 조회
     Optional<UserTeam> findByUserAndTeam(User user, Team team);
 
+    Optional<UserTeam> findByTeam_IdAndUser_Id(Long teamId, Long userId);
     //중복 참가 방지용 체크
     boolean existsByUserAndTeam(User user, Team team);
 
