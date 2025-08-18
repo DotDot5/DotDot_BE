@@ -1,12 +1,20 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
-import com.example.dotdot.dto.response.meeting.*;
+import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
+import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
+import com.example.dotdot.dto.response.meeting.MeetingListResponse;
+import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -99,5 +107,42 @@ public class MeetingController implements MeetingControllerSpecification{
         return ResponseEntity.ok(DataResponse.from(res));
     }
 
+    @PutMapping("/{meetingId}/stt-result")
+    public ResponseEntity<Void> updateMeetingSttResult(
+            @PathVariable("meetingId") Long meetingId,
+            @RequestBody SttResultUpdateRequest request) {
+        try {
+            System.out.println("Received request to update STT result for Meeting ID: " + meetingId);
+            // 서비스 메서드 호출 시 meetingId와 request DTO를 모두 전달
+            meetingService.updateMeetingSttResultAndSaveLogs(meetingId, request);
+            return ResponseEntity.ok().build();
+        } catch (EntityNotFoundException e) {
+            System.err.println("Meeting not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            System.err.println("Error updating STT result for Meeting ID " + meetingId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/{meetingId}/stt-result")
+    public ResponseEntity<DataResponse<MeetingSttResultResponse>> getMeetingSttResult(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable("meetingId") Long meetingId) {
+        try {
+            System.out.println("Received request to get STT result for Meeting ID: " + meetingId);
+            MeetingSttResultResponse result = meetingService.getMeetingSttResult(meetingId);
+
+            return ResponseEntity.ok(DataResponse.from(result));
+        } catch (EntityNotFoundException e) {
+            System.err.println("Meeting not found with ID: " + meetingId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            System.err.println("Error fetching STT result for Meeting ID " + meetingId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
 }

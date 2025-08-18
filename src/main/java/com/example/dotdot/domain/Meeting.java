@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 
 @Entity
 @Getter
@@ -13,6 +16,7 @@ import java.time.LocalDateTime;
 @Builder
 @Table(name = "meetings")
 public class Meeting {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "meeting_id")
@@ -60,6 +64,9 @@ public class Meeting {
     @Lob
     private String note;
 
+    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SpeechLog> speechLogs = new ArrayList<>();
+
     public enum MeetingMethod {
         RECORD, REALTIME
     }
@@ -75,4 +82,16 @@ public class Meeting {
         this.note = note;
     }
 
+    public void addSpeechLog(SpeechLog log) {
+        this.speechLogs.add(log);
+        log.setMeeting(this);
+    }
+
+    public void removeSpeechLog(SpeechLog log) {
+        this.speechLogs.remove(log);
+        log.setMeeting(null);
+    }
 }
+
+
+
