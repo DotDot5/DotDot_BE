@@ -1,13 +1,8 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
+import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
-import com.example.dotdot.dto.response.meeting.CreateMeetingResponse;
-import com.example.dotdot.dto.response.meeting.MeetingListResponse;
-import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.MeetingService;
