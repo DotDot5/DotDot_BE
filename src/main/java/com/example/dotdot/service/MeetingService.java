@@ -1,11 +1,16 @@
 package com.example.dotdot.service;
 
 import com.example.dotdot.domain.*;
+import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
+import com.example.dotdot.dto.request.meeting.SpeechLogDto;
+import com.example.dotdot.repository.MeetingRepository;
+import com.example.dotdot.repository.SpeechLogRepository;
 import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
+import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
 import com.example.dotdot.global.client.OpenAISummaryClient;
@@ -13,22 +18,20 @@ import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
 import com.example.dotdot.repository.AgendaRepository;
-import com.example.dotdot.repository.MeetingRepository;
 import com.example.dotdot.repository.ParticipantRepository;
-import com.example.dotdot.repository.UserRepository;
 import com.example.dotdot.repository.TeamRepository;
 import com.example.dotdot.repository.UserRepository;
 import com.example.dotdot.repository.UserTeamRepository;
-import com.google.api.gax.rpc.NotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+
 
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
@@ -42,6 +45,7 @@ public class MeetingService {
     private final UserRepository userRepository;
     private final UserTeamRepository userTeamRepository;
     private final OpenAISummaryClient summaryClient;
+    private final SpeechLogRepository speechLogRepository;
 
     @Transactional
     public Long createMeeting(CreateMeetingRequest request) {
@@ -70,7 +74,7 @@ public class MeetingService {
                             .meeting(meeting)
                             .user(user)
                             .part(dto.getPart())
-                            .speakerIndex(dto.getSpeakerIndex())  // 선택
+                            .speakerIndex(dto.getSpeakerIndex())
                             .build()
             );
         }
@@ -102,13 +106,13 @@ public class MeetingService {
                     } else if ("finished".equalsIgnoreCase(statusFilter)) {
                         return now.isAfter(endTime);
                     }
-                    return true; // 필터 없으면 전체 반환
+                    return true;
                 })
                 .sorted((m1, m2) -> {
                     if ("finished".equalsIgnoreCase(statusFilter)) {
-                        return m2.getMeetingAt().compareTo(m1.getMeetingAt()); // 내림차순
+                        return m2.getMeetingAt().compareTo(m1.getMeetingAt());
                     } else if ("upcoming".equalsIgnoreCase(statusFilter)) {
-                        return m1.getMeetingAt().compareTo(m2.getMeetingAt()); // 오름차순
+                        return m1.getMeetingAt().compareTo(m2.getMeetingAt());
                     }
                     return 0;
                 })
@@ -212,6 +216,56 @@ public class MeetingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void updateMeetingSttResultAndSaveLogs(Long meetingId, SttResultUpdateRequest request) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new EntityNotFoundException("Meeting not found with ID: " + meetingId));
+
+        meeting.setDuration(request.getDuration());
+        meeting.setTranscript(request.getTranscript());
+
+        speechLogRepository.deleteAllByMeeting(meeting);
+
+        if (request.getSpeechLogs() != null && !request.getSpeechLogs().isEmpty()) {
+            List<SpeechLog> speechLogs = request.getSpeechLogs().stream()
+                    .map(logDto -> SpeechLog.builder()
+                            .meeting(meeting)
+                            .speakerIndex(logDto.getSpeakerIndex())
+                            .text(logDto.getText())
+                            .startTime(logDto.getStartTime())
+                            .endTime(logDto.getEndTime())
+                            .build())
+                    .collect(Collectors.toList());
+
+            speechLogRepository.saveAll(speechLogs);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingSttResultResponse getMeetingSttResult(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new EntityNotFoundException("Meeting not found with ID: " + meetingId));
+
+        List<SpeechLog> speechLogs = speechLogRepository.findByMeeting(meeting);
+
+        List<SpeechLogDto> speechLogDtos = speechLogs.stream()
+                .map(log -> {
+                    SpeechLogDto dto = new SpeechLogDto();
+                    dto.setSpeakerIndex(log.getSpeakerIndex());
+                    dto.setText(log.getText());
+                    dto.setStartTime(log.getStartTime());
+                    dto.setEndTime(log.getEndTime());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        return MeetingSttResultResponse.builder()
+                .meetingId(meeting.getId())
+                .transcript(meeting.getTranscript())
+                .duration(meeting.getDuration())
+                .speechLogs(speechLogDtos)
+                .build();
+    }
 
     private User getUserOrThrow(Long userId) {
         return userRepository.findById(userId)
@@ -230,12 +284,10 @@ public class MeetingService {
             throw new IllegalStateException("회의 transcript가 없습니다. 업로드 후 다시 시도하세요.");
         }
 
-        // 상태: 진행중
         meeting.setSummaryStatus(Meeting.SummaryStatus.IN_PROGRESS);
         meeting.setSummaryUpdatedAt(LocalDateTime.now());
 
         try {
-            // Agenda까지 합쳐서 요약하기
             List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
             StringBuilder agendaText = new StringBuilder("회의 안건 목록:\n");
             for (Agenda a : agendas) {
@@ -260,7 +312,6 @@ public class MeetingService {
         }
     }
 
-
     @Transactional(readOnly = true)
     public String getMeetingSummary(Long meetingId) {
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -280,6 +331,4 @@ public class MeetingService {
                 m.getSummaryUpdatedAt() == null ? null : m.getSummaryUpdatedAt().toString()
         );
     }
-
 }
-
