@@ -114,6 +114,7 @@ public class TeamServcie {
                         .name(ut.getUser().getName())
                         .profileImageUrl(ut.getUser().getProfileImageUrl())
                         .role(ut.getRole())
+                        .email(ut.getUser().getEmail())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -163,6 +164,7 @@ public class TeamServcie {
                         .name(ut.getUser().getName())
                         .profileImageUrl(ut.getUser().getProfileImageUrl())
                         .role(ut.getRole())
+                        .email(ut.getUser().getEmail())
                         .build())
                 .collect(Collectors.toList());
 

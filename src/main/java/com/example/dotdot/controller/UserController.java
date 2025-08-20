@@ -41,7 +41,6 @@ public class UserController implements UserControllerSpecification{
     }
 
 
-
     @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DataResponse<String>> updateProfileImage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -52,13 +51,21 @@ public class UserController implements UserControllerSpecification{
     }
 
 
-
     @PutMapping("/me/password")
     public ResponseEntity<DataResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody PasswordChangeRequest request) {
         Long userId = userDetails.getId();
         userService.updatePassword(userId, request);
+        return ResponseEntity.ok(DataResponse.ok());
+    }
+
+
+    // ✨ 회원 탈퇴 기능 추가
+    @DeleteMapping("/me/withdrawal")
+    public ResponseEntity<DataResponse<Void>> withdrawal(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getId();
+        userService.withdrawal(userId);
         return ResponseEntity.ok(DataResponse.ok());
     }
 }

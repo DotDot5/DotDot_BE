@@ -27,6 +27,8 @@ public class User {
 
     private String profileImageUrl;
 
+    private String department;
+
     private String position; // ex) 슝슝회사 대리
 
 //    private String audioUrl; // 사용자별 음성 링크
@@ -43,6 +45,7 @@ public class User {
         this.name = request.getName();
         this.email = request.getEmail();
         this.position = request.getPosition();
+        this.department = request.getDepartment();
     }
 
     // 프로필 이미지 업데이트
