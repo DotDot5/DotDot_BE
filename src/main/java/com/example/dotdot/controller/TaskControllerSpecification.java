@@ -3,6 +3,7 @@ package com.example.dotdot.controller;
 import com.example.dotdot.dto.request.task.ChangeStatusRequest;
 import com.example.dotdot.dto.request.task.TaskCreateRequest;
 import com.example.dotdot.dto.request.task.TaskUpdateRequest;
+import com.example.dotdot.dto.response.task.ExtractTasksResponse;
 import com.example.dotdot.dto.response.task.TaskListResponse;
 import com.example.dotdot.dto.response.task.TaskResponse;
 import com.example.dotdot.global.dto.DataResponse;
@@ -150,5 +151,21 @@ public interface TaskControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long taskId
     );
+
+    @Operation(summary="회의 태스크 자동 추출", description="회의 transcript(+옵션: agenda)를 기반으로 참가자별 태스크를 추출합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode="200", description="추출 성공",
+                    content=@Content(mediaType="application/json", schema=@Schema(implementation= ExtractTasksResponse.class))),
+            @ApiResponse(responseCode="401", description="인증 필요 (USER-006)",
+                    content=@Content(schema=@Schema(implementation=ErrorResponse.class))),
+            @ApiResponse(responseCode="404", description="존재하지 않는 회의 (MEETING-001)",
+                    content=@Content(schema=@Schema(implementation=ErrorResponse.class)))
+    })
+    public ResponseEntity<DataResponse<ExtractTasksResponse>> extractTasks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description="회의 ID", example="11") @PathVariable Long meetingId,
+            @RequestBody(required=false) com.example.dotdot.dto.request.task.ExtractTasksRequest request
+    );
+
 
 }

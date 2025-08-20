@@ -12,7 +12,9 @@ public enum TaskErrorCode implements ErrorCode {
     FORBIDDEN_TASK_ACCESS(HttpStatus.FORBIDDEN, "해당 작업에 접근할 권한이 없습니다.", "TASK-002"),
     INVALID_TASK_STATUS(HttpStatus.BAD_REQUEST, "잘못된 작업 상태입니다.", "TASK-003"),
     INVALID_TASK_PRIORITY(HttpStatus.BAD_REQUEST, "잘못된 작업 우선순위입니다.", "TASK-004"),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다.", "TASK-005"),
     USER_NOT_IN_TEAM(HttpStatus.BAD_REQUEST, "담당자가 팀에 소속되어 있지 않습니다.", "TASK-005");
+
 
     private final HttpStatus httpStatus;
     private final String message;

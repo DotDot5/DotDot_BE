@@ -5,11 +5,16 @@ import com.example.dotdot.domain.Team;
 import com.example.dotdot.domain.User;
 import com.example.dotdot.domain.UserTeam;
 import com.example.dotdot.domain.task.Task;
+import com.example.dotdot.domain.task.TaskPriority;
 import com.example.dotdot.domain.task.TaskStatus;
+import com.example.dotdot.dto.request.task.ExtractTasksRequest;
 import com.example.dotdot.dto.request.task.TaskCreateRequest;
 import com.example.dotdot.dto.request.task.TaskUpdateRequest;
+import com.example.dotdot.dto.response.task.ExtractTasksResponse;
+import com.example.dotdot.dto.response.task.TaskDraft;
 import com.example.dotdot.dto.response.task.TaskListResponse;
 import com.example.dotdot.dto.response.task.TaskResponse;
+import com.example.dotdot.global.client.OpenAITaskExtractClient;
 import com.example.dotdot.global.exception.AppException;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
@@ -37,6 +42,7 @@ import static com.example.dotdot.global.exception.task.TaskErrorCode.TASK_NOT_FO
 import static com.example.dotdot.global.exception.team.TeamErrorCode.FORBIDDEN_TEAM_ACCESS;
 import static com.example.dotdot.global.exception.team.TeamErrorCode.TEAM_NOT_FOUND;
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
+import static org.hibernate.internal.util.StringHelper.isBlank;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +53,9 @@ public class TaskService {
     private final UserRepository userRepository;
     private final UserTeamRepository userTeamRepository;
     private final MeetingRepository meetingRepository;
+    private final ParticipantRepository participantRepository;
+    private final OpenAITaskExtractClient taskExtractClient;
+    private final AgendaRepository agendaRepository;
 
     //task 생성
     @Transactional
@@ -207,6 +216,134 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
+    @Transactional
+    public ExtractTasksResponse extractFromTranscript(Long userId, Long meetingId, ExtractTasksRequest req) {
+        boolean dry = req != null && Boolean.TRUE.equals(req.getDryRun());
+        boolean overwrite = req != null && Boolean.TRUE.equals(req.getOverwrite());
+        boolean includeAgendas = (req == null) || Boolean.TRUE.equals(req.getIncludeAgendas());
+        String language = (req != null && req.getLanguage() != null) ? req.getLanguage() : "ko";
+        Integer defaultDueDays = (req != null && req.getDefaultDueDays() != null) ? req.getDefaultDueDays() : 7;
+
+        // 권한/소속 검증
+        User user = getUserOrThrow(userId);
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MEETING_NOT_FOUND));
+        Team team = getTeamOrThrow(meeting.getTeam().getId());
+        checkMembershipOrThrow(user, team);
+
+        // 3) 회의록 필수 체크 — enum에 상수가 없다면 임시로 INVALID_REQUEST 사용 또는 새로운 상수 추가
+        String transcript = meeting.getTranscript();
+        if (transcript == null || transcript.isBlank()) {
+            // (A) TaskErrorCode에 TRANSCRIPT_REQUIRED가 없다면 아래처럼 대체
+            throw new AppException(TaskErrorCode.INVALID_REQUEST);
+            // 또는 enum에 TRANSCRIPT_REQUIRED 추가를 권장
+        }
+
+        // 4) 참가자/아젠다
+        var participants = participantRepository.findAllByMeetingId(meetingId);
+
+        // *** 제네릭 명시가 중요! ***
+        java.util.List<com.example.dotdot.domain.Agenda> agendas = includeAgendas
+                ? agendaRepository.findAllByMeetingId(meetingId)
+                : java.util.Collections.emptyList();
+
+        String participantLines = participants.stream()
+                .map(p -> "- " + p.getUser().getName())
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+        String agendaText = agendas.isEmpty() ? "(없음)" :
+                agendas.stream()
+                        .map(a -> "- " + a.getAgenda()
+                                + ((a.getBody() == null || a.getBody().isBlank()) ? "" : ("\n  " + a.getBody())))
+                        .collect(java.util.stream.Collectors.joining("\n"));
+
+        String prompt = buildTaskPrompt(transcript, participantLines, agendaText, language);
+
+        // 5) OpenAI 호출
+        java.util.List<TaskDraft> drafts = taskExtractClient.extract(prompt);
+
+        // 6) overwrite 처리
+        if (overwrite && !dry) {
+            taskRepository.deleteByMeeting_Id(meetingId);
+        }
+
+        java.util.Map<String, UserTeam> nameToUserTeam = new java.util.HashMap<>();
+        for (var p : participants) {
+            userTeamRepository.findByTeam_IdAndUser_Id(team.getId(), p.getUser().getId())
+                    .ifPresent(ut -> nameToUserTeam.put(normalizeName(p.getUser().getName()), ut));
+        }
+
+        int created = 0, skipped = 0;
+        java.util.List<TaskDraft> normalizedDrafts = new java.util.ArrayList<>();
+
+        for (TaskDraft d : drafts) {
+            String inTitle = d.getTitle();
+            if (isBlank(inTitle)) { skipped++; continue; }
+
+            UserTeam ut = nameToUserTeam.get(normalizeName(d.getAssigneeName()));
+            if (ut == null) { skipped++; continue; }
+
+            java.time.LocalDateTime due = parseIsoOrDefault(d.getDue(), meeting.getMeetingAt(), defaultDueDays);
+            TaskPriority priority = normalizePriority(d.getPriority()); // HIGH/MEDIUM/LOW
+
+            String title = cut(inTitle, 200);
+            String desc  = cut(d.getDescription(), 4000);
+
+            if (dry) {
+                normalizedDrafts.add(new TaskDraft(
+                        ut.getUser().getName(),
+                        title,
+                        desc,
+                        d.getDue(),
+                        (priority == null ? TaskPriority.MEDIUM : priority).name()
+                ));
+            } else {
+                Task saved = Task.of(
+                        team,
+                        meeting,
+                        ut,
+                        title,
+                        desc,
+                        (priority == null ? TaskPriority.MEDIUM : priority),
+                        TaskStatus.TODO,
+                        due
+                );
+                taskRepository.save(saved);
+                created++;
+            }
+        }
+
+        java.util.List<TaskDraft> payload = dry ? normalizedDrafts : java.util.Collections.<TaskDraft>emptyList();
+        return new ExtractTasksResponse(meetingId, created, skipped, payload);
+    }
+
+    private String buildTaskPrompt(String transcript, String participantLines, String agendaText, String language) {
+        return """
+            당신은 회의록에서 실행 가능한 TODO 태스크를 추출하는 도우미입니다.
+
+            [출력 언어]
+            - 반드시 %s 로 작성하세요.
+
+            [회의 참가자]
+            %s
+
+            [아젠다]
+            %s
+
+            [회의록]
+            %s
+
+            [출력 형식]
+            JSON 배열로 출력하며, 각 항목은 다음 속성을 가집니다:
+            - title: 짧고 명확한 실행 항목 제목
+            - description: (선택) 추가 설명
+            - assigneeName: 반드시 위 참가자 중 한 명의 이름
+            - due: ISO-8601 날짜/시간 (예측 불가능하면 null)
+            - priority: HIGH | MEDIUM | LOW (기본 MEDIUM)
+            """.formatted(language, participantLines, agendaText, transcript);
+    }
+
+
 
     private User getUserOrThrow(Long userId) {
         return userRepository.findById(userId)
@@ -222,6 +359,42 @@ public class TaskService {
         if (!userTeamRepository.existsByUserAndTeam(user, team)) {
             throw new ForbiddenTeamAccessException(FORBIDDEN_TEAM_ACCESS);
         }
+    }
+
+    private static boolean isBlank(String s){
+        return s == null || s.isBlank();
+    }
+
+    private static String cut(String s, int max){
+        if (s == null) return null;
+        return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    private static String normalizeName(String name){
+        if (name == null) return null;
+        // 공백/구두점 제거, “님/씨” 접미사 제거, 소문자화
+        return name.replaceAll("[\\s\\p{Punct}]", "")
+                .replaceAll("(님|씨)$","")
+                .toLowerCase();
+    }
+
+    private static java.time.LocalDateTime parseIsoOrDefault(
+            String iso, java.time.LocalDateTime meetingAt, Integer plusDays
+    ){
+        if (iso != null && !iso.isBlank()) {
+            try {
+                return java.time.OffsetDateTime.parse(iso).toLocalDateTime();
+            } catch (Exception ignore) { /* fall through */ }
+        }
+        int days = (plusDays == null || plusDays < 0) ? 7 : plusDays;
+        return (meetingAt != null) ? meetingAt.plusDays(days)
+                : java.time.LocalDateTime.now().plusDays(days);
+    }
+
+    private static TaskPriority normalizePriority(String p){
+        if (p == null) return null;
+        try { return TaskPriority.valueOf(p.toUpperCase()); }
+        catch (Exception e){ return null; }
     }
 }
 
