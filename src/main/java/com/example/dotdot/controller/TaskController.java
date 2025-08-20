@@ -2,8 +2,10 @@ package com.example.dotdot.controller;
 
 import com.example.dotdot.domain.task.TaskStatus;
 import com.example.dotdot.dto.request.task.ChangeStatusRequest;
+import com.example.dotdot.dto.request.task.ExtractTasksRequest;
 import com.example.dotdot.dto.request.task.TaskCreateRequest;
 import com.example.dotdot.dto.request.task.TaskUpdateRequest;
+import com.example.dotdot.dto.response.task.ExtractTasksResponse;
 import com.example.dotdot.dto.response.task.TaskListResponse;
 import com.example.dotdot.dto.response.task.TaskResponse;
 import com.example.dotdot.global.dto.DataResponse;
@@ -128,4 +130,13 @@ public class TaskController implements TaskControllerSpecification{
                 .and(Sort.by(Sort.Order.asc("id"))); // tie-breaker
     }
 
+    @PostMapping("/{meetingId}/tasks/extract")
+    public ResponseEntity<DataResponse<ExtractTasksResponse>> extractTasks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody(required = false) ExtractTasksRequest request
+    ) {
+        var res = taskService.extractFromTranscript(userDetails.getId(), meetingId, request);
+        return ResponseEntity.ok(DataResponse.from(res));
+    }
 }
