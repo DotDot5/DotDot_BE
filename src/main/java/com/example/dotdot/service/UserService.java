@@ -83,7 +83,7 @@ public class UserService {
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
     }
 
-    // ✨ 회원 탈퇴 기능 추가
+    // 회원 탈퇴 기능 추가
     public void withdrawal(Long userId) {
         User user = findUserById(userId);
         userRepository.delete(user);
