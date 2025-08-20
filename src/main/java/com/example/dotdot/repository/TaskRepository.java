@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
+    void deleteByMeeting_Id(Long meetingId);
 
     @Query("""
       select t from Task t
