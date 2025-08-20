@@ -87,7 +87,7 @@ public class UserService {
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
     }
 
-    private User findUserById(Long userId) {
+    public User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
