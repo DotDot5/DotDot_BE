@@ -14,4 +14,5 @@ public class TeamMemberResponse {
     private String name;
     private String profileImageUrl;
     private String role;
+    private final String email;
 }
