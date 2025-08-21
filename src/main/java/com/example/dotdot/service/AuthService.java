@@ -1,7 +1,9 @@
 package com.example.dotdot.service;
 
+import com.example.dotdot.domain.PasswordResetToken;
 import com.example.dotdot.domain.User;
 import com.example.dotdot.dto.request.user.LoginRequest;
+import com.example.dotdot.dto.request.user.PasswordUpdateRequest;
 import com.example.dotdot.dto.request.user.SignupRequest;
 import com.example.dotdot.dto.response.user.TokenResponse;
 import com.example.dotdot.global.exception.AppException;
@@ -10,14 +12,22 @@ import com.example.dotdot.global.exception.user.InvalidCredentialsException;
 import com.example.dotdot.global.exception.user.InvalidRefreshTokenException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
 import com.example.dotdot.global.security.JwtTokenProvider;
+import com.example.dotdot.repository.PasswordResetTokenRepository;
 import com.example.dotdot.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static com.example.dotdot.global.exception.CommonErrorCode.INTERNAL_SERVER_ERROR;
 import static com.example.dotdot.global.exception.user.UserErrorCode.*;
@@ -31,7 +41,11 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final JavaMailSender javaMailSender;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     // 이메일 중복 확인 메소드
     public boolean isEmailDuplicate(String email) {
@@ -118,4 +132,46 @@ public class AuthService {
                 .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
 
+
+
+    // 비밀번호 재설정 요청
+    public void createPasswordResetToken(String email) {
+        User user = findUserByEmail(email);
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken passwordResetToken = PasswordResetToken.of(token, user, LocalDateTime.now().plusMinutes(10));// 토큰 유효 시간 10분
+        passwordResetTokenRepository.save(passwordResetToken);
+        sendPasswordResetEmail(user.getEmail(), token);
+    }
+
+    // 비밀번호 재설정 이메일 전송
+    @Async
+    public void sendPasswordResetEmail(String to, String token) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject("DotDot 비밀번호 재설정 요청");
+            String resetUrl = frontendUrl + "/reset-password?token=" + token;
+            message.setText("비밀번호를 재설정하려면 다음 링크를 클릭하세요: " + resetUrl);
+            javaMailSender.send(message);
+        } catch (Exception e) {
+            throw new AppException(PASSWORD_RESET_EMAIL_SEND_FAILED);
+        }
+    }
+
+    public void resetPassword(PasswordUpdateRequest request) {
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new AppException(INVALID_PASSWORD_RESET_TOKEN));
+
+        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new AppException(PASSWORD_RESET_TOKEN_EXPIRED);
+        }
+
+        User user = resetToken.getUser();
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // 사용 완료된 토큰 삭제
+        passwordResetTokenRepository.delete(resetToken);
+    }
 }
