@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.example.dotdot.global.exception.CommonErrorCode.INTERNAL_SERVER_ERROR;
@@ -137,10 +138,22 @@ public class AuthService {
     // 비밀번호 재설정 요청
     public void createPasswordResetToken(String email) {
         User user = findUserByEmail(email);
-        String token = UUID.randomUUID().toString();
-        PasswordResetToken passwordResetToken = PasswordResetToken.of(token, user, LocalDateTime.now().plusMinutes(10));// 토큰 유효 시간 10분
-        passwordResetTokenRepository.save(passwordResetToken);
-        sendPasswordResetEmail(user.getEmail(), token);
+        Optional<PasswordResetToken> existingTokenOpt = passwordResetTokenRepository.findByUser(user);
+
+        String newToken = UUID.randomUUID().toString();
+        LocalDateTime newExpiryDate = LocalDateTime.now().plusMinutes(10);
+
+        if (existingTokenOpt.isPresent()) {
+            // 토큰이 이미 존재한다면, 기존 토큰의 정보만 갱신
+            PasswordResetToken existingToken = existingTokenOpt.get();
+            existingToken.updateToken(newToken, newExpiryDate);
+            passwordResetTokenRepository.save(existingToken);
+        } else {
+            // 토큰이 없다면, 새로 생성
+            PasswordResetToken newPasswordResetToken = PasswordResetToken.of(newToken, user, newExpiryDate);
+            passwordResetTokenRepository.save(newPasswordResetToken);
+        }
+        sendPasswordResetEmail(user.getEmail(), newToken);
     }
 
     // 비밀번호 재설정 이메일 전송

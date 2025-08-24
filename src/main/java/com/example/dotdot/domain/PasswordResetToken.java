@@ -35,4 +35,9 @@ public class PasswordResetToken {
                 .expiryDate(expiryDate)
                 .build();
     }
+
+    public void updateToken(String token, LocalDateTime expiryDate) {
+        this.token = token;
+        this.expiryDate = expiryDate;
+    }
 }
