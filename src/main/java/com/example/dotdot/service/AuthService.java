@@ -163,7 +163,7 @@ public class AuthService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
             message.setSubject("DotDot 비밀번호 재설정 요청");
-            String resetUrl = frontendUrl + "/reset-password?token=" + token;
+            String resetUrl = frontendUrl + "/auth/reset-password?token=" + token;
             message.setText("비밀번호를 재설정하려면 다음 링크를 클릭하세요: " + resetUrl);
             javaMailSender.send(message);
         } catch (Exception e) {
