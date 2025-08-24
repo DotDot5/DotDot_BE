@@ -53,6 +53,11 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/meetings/*/stt-result").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/meetings/*/stt-result").permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
