@@ -10,9 +10,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ExtractTasksRequest {
-    Boolean dryRun;
-    Boolean overwrite;
-    Boolean includeAgendas;
-    String language;
+    Boolean dryRun; //DB 저장 여부
+    Boolean overwrite; // 덮어쓰기 여부
+    Boolean includeAgendas; // 안건 포함 여부
+    String language; // ko || en
     Integer defaultDueDays;
 }
