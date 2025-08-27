@@ -231,18 +231,13 @@ public class TaskService {
         Team team = getTeamOrThrow(meeting.getTeam().getId());
         checkMembershipOrThrow(user, team);
 
-        // 3) 회의록 필수 체크 — enum에 상수가 없다면 임시로 INVALID_REQUEST 사용 또는 새로운 상수 추가
         String transcript = meeting.getTranscript();
         if (transcript == null || transcript.isBlank()) {
-            // (A) TaskErrorCode에 TRANSCRIPT_REQUIRED가 없다면 아래처럼 대체
             throw new AppException(TaskErrorCode.INVALID_REQUEST);
-            // 또는 enum에 TRANSCRIPT_REQUIRED 추가를 권장
         }
 
-        // 4) 참가자/아젠다
         var participants = participantRepository.findAllByMeetingId(meetingId);
 
-        // *** 제네릭 명시가 중요! ***
         java.util.List<com.example.dotdot.domain.Agenda> agendas = includeAgendas
                 ? agendaRepository.findAllByMeetingId(meetingId)
                 : java.util.Collections.emptyList();
@@ -259,10 +254,8 @@ public class TaskService {
 
         String prompt = buildTaskPrompt(transcript, participantLines, agendaText, language);
 
-        // 5) OpenAI 호출
         java.util.List<TaskDraft> drafts = taskExtractClient.extract(prompt);
 
-        // 6) overwrite 처리
         if (overwrite && !dry) {
             taskRepository.deleteByMeeting_Id(meetingId);
         }
@@ -294,7 +287,7 @@ public class TaskService {
                         ut.getUser().getName(),
                         title,
                         desc,
-                        d.getDue(),
+                        toIsoString(due),
                         (priority == null ? TaskPriority.MEDIUM : priority).name()
                 ));
             } else {
@@ -395,6 +388,11 @@ public class TaskService {
         if (p == null) return null;
         try { return TaskPriority.valueOf(p.toUpperCase()); }
         catch (Exception e){ return null; }
+    }
+    private static String toIsoString(java.time.LocalDateTime ldt) {
+        if (ldt == null) return null;
+        var zone = java.time.ZoneId.systemDefault();
+        return ldt.atZone(zone).toOffsetDateTime().toString();
     }
 }
 
