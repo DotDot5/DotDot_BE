@@ -20,7 +20,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("""
       select t from Task t
       where t.team.id = :teamId
-        and t.due >= :start and t.due < :end
+        and ( (:start is null and :end is null) or (t.due >= :start and t.due < :end) )
         and (:meetingId is null or t.meeting.id = :meetingId)
         and (:assigneeUserId is null or t.assignee.user.id = :assigneeUserId)
     """)
@@ -43,7 +43,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
       select t.status as status, count(t) as count
       from Task t
       where t.team.id = :teamId
-        and t.due >= :start and t.due < :end
+        and ( (:start is null and :end is null) or (t.due >= :start and t.due < :end) )
         and (:meetingId is null or t.meeting.id = :meetingId)
         and (:assigneeUserId is null or t.assignee.user.id = :assigneeUserId)
       group by t.status

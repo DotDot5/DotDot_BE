@@ -165,9 +165,16 @@ public class TaskService {
         Team team = getTeamOrThrow(teamId);
         checkMembershipOrThrow(user, team);
 
-        LocalDate target=(date!=null)?date:LocalDate.now();
-        LocalDateTime start = target.atStartOfDay();
-        LocalDateTime end = target.plusDays(1).atStartOfDay();
+        LocalDateTime start = null;
+        LocalDateTime end   = null;
+        if (date != null) {
+            start = date.atStartOfDay();
+            end   = date.plusDays(1).atStartOfDay();
+        }
+
+//        LocalDate target=(date!=null)?date:LocalDate.now();
+//        LocalDateTime start = target.atStartOfDay();
+//        LocalDateTime end = target.plusDays(1).atStartOfDay();
 
         Page<Task> page = taskRepository.searchTeamTasks(
                 teamId, start, end, meetingIdOrNull, assigneeUserIdOrNull, pageable
