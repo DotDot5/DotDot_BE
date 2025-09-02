@@ -10,5 +10,6 @@ import java.util.List;
 public class SttResultUpdateRequest {
     private int duration;
     private String transcript;
+    private String audio_id;
     private List<SpeechLogDto> speechLogs;
 }

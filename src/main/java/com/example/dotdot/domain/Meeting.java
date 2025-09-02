@@ -59,7 +59,7 @@ public class Meeting {
     private int duration = 0;
 
     @Column(name = "audio_id")
-    private Long audioId;
+    private String audioId;
 
     @Lob
     private String note;

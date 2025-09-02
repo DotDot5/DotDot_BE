@@ -60,7 +60,7 @@ public class TaskService {
     //task 생성
     @Transactional
     public Long createTask(Long userId, Long teamId, TaskCreateRequest request) {
-        User user =getUserOrThrow(userId);
+        User user = getUserOrThrow(userId);
         Team team = getTeamOrThrow(teamId);
 
         UserTeam assignee = userTeamRepository.findByTeam_IdAndUser_Id(team.getId(), request.getAssigneeId())
@@ -68,30 +68,20 @@ public class TaskService {
 
         checkMembershipOrThrow(user,team);
 
-        Long meetingId = request.getMeetingId();
-        if (meetingId != null && meetingId <= 0) {
-            meetingId = null; // 0, 음수는 회의 없음으로 간주
-        }
-
         Meeting meeting = null;
-        if(meetingId!=null){
+        if (request.getMeetingId() != null && request.getMeetingId() > 0) {
             meeting = meetingRepository.findById(request.getMeetingId())
                     .orElseThrow(() -> new MeetingNotFoundException(MEETING_NOT_FOUND));
             if (!meeting.getTeam().getId().equals(team.getId())) {
-                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM); // 없으면 FORBIDDEN으로 대체
+                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM);
             }
         }
 
-        Task saved=taskRepository.save(Task.of(
-                team,
-                meeting,
-                assignee,
-                request.getTitle(),
-                request.getDescription(),
-                request.getPriority(),
-                request.getStatus(),
-                request.getDue()
-                ));
+        Task saved = taskRepository.save(Task.of(
+                team, meeting, assignee,
+                request.getTitle(), request.getDescription(), request.getPriority(),
+                request.getStatus(), request.getDue() // DTO가 LocalDate를 제공한다고 가정
+        ));
         return saved.getId();
     }
 
@@ -103,8 +93,7 @@ public class TaskService {
                 .orElseThrow(() -> new TaskNotFoundException(TASK_NOT_FOUND));
 
         Team team = getTeamOrThrow(task.getTeam().getId());
-
-        checkMembershipOrThrow(user,team);
+        checkMembershipOrThrow(user, team);
         return TaskResponse.from(task);
     }
 
@@ -116,8 +105,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(TASK_NOT_FOUND));
         Team team = getTeamOrThrow(task.getTeam().getId());
-
-        checkMembershipOrThrow(user,team);
+        checkMembershipOrThrow(user, team);
 
         UserTeam newAssignee = null;
         if (request.getAssigneeId() != null) {
@@ -156,28 +144,26 @@ public class TaskService {
     public TaskListResponse listTasks(
             Long userId,
             Long teamId,
-            LocalDate date,                 // 달력 선택 날짜 (null이면 오늘)
-            Long meetingIdOrNull,           // 회의 필터 (null이면 전체)
-            Long assigneeUserIdOrNull,      // 전체팀원=null, 특정 팀원=userId
+            LocalDate startDate,
+            LocalDate endDate,
+            Long meetingIdOrNull,
+            Long assigneeUserIdOrNull,
             Pageable pageable) {
 
         User user =getUserOrThrow(userId);
         Team team = getTeamOrThrow(teamId);
         checkMembershipOrThrow(user, team);
 
-        LocalDateTime start = null;
-        LocalDateTime end   = null;
-        if (date != null) {
-            start = date.atStartOfDay();
-            end   = date.plusDays(1).atStartOfDay();
-        }
+        // [수정] 날짜 파라미터가 null일 경우를 대비해 기본값을 설정합니다.
+        LocalDate searchStartDate = (startDate != null) ? startDate : LocalDate.now();
+        LocalDate searchEndDate = (endDate != null) ? endDate : searchStartDate;
 
         Page<Task> page = taskRepository.searchTeamTasks(
-                teamId, start, end, meetingIdOrNull, assigneeUserIdOrNull, pageable
+                teamId, searchStartDate, searchEndDate, meetingIdOrNull, assigneeUserIdOrNull, pageable
         );
 
         Map<TaskStatus, Long> counts = new EnumMap<>(TaskStatus.class);
-        taskRepository.countByStatusForTeam(teamId, start, end, meetingIdOrNull, assigneeUserIdOrNull)
+        taskRepository.countByStatusForTeam(teamId, searchStartDate, searchEndDate, meetingIdOrNull, assigneeUserIdOrNull)
                 .forEach(sc -> counts.put(sc.getStatus(), sc.getCount()));
 
         long todo = counts.getOrDefault(TaskStatus.TODO, 0L);
@@ -302,7 +288,7 @@ public class TaskService {
                         desc,
                         (priority == null ? TaskPriority.MEDIUM : priority),
                         TaskStatus.TODO,
-                        due
+                        due.toLocalDate()
                 );
                 taskRepository.save(saved);
                 created++;

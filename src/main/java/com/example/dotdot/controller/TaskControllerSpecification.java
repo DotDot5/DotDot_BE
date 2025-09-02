@@ -113,10 +113,8 @@ public interface TaskControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            @Parameter(
-                    description = "날짜(ISO-8601). 예: 2025-07-01",
-                    schema = @Schema(type = "string", format = "date", example = "2025-07-01")
-            )
+            @Parameter(description = "조회 시작 날짜(ISO-8601). 예: 2025-09-01", schema = @Schema(type = "string", format = "date"))
+            LocalDate startDate,
             LocalDate date,
             @RequestParam(required = false)
             @Parameter(description = "회의 ID(선택). 팀 보드에서는 생략하거나 null", example = "null")

@@ -31,7 +31,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/v1/")
 @RequiredArgsConstructor
-public class TaskController implements TaskControllerSpecification{
+public class TaskController implements TaskControllerSpecification {
     public final TaskService taskService;
 
     @PostMapping("/teams/{teamId}/tasks")
@@ -39,8 +39,8 @@ public class TaskController implements TaskControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @Valid @RequestBody TaskCreateRequest request
-    ){
-        Long taskId= taskService.createTask(userDetails.getId(),teamId,request);
+    ) {
+        Long taskId = taskService.createTask(userDetails.getId(), teamId, request);
         return ResponseEntity.ok(DataResponse.from(taskId));
     }
 
@@ -48,8 +48,8 @@ public class TaskController implements TaskControllerSpecification{
     public ResponseEntity<DataResponse<TaskResponse>> getTask(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long taskId
-    ){
-        TaskResponse response=taskService.getTask(userDetails.getId(),taskId);
+    ) {
+        TaskResponse response = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.from(response));
     }
 
@@ -58,8 +58,8 @@ public class TaskController implements TaskControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long taskId,
             @Valid @RequestBody TaskUpdateRequest request
-    ){
-        taskService.updateTask(userDetails.getId(),taskId,request);
+    ) {
+        taskService.updateTask(userDetails.getId(), taskId, request);
         TaskResponse resp = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.from(resp));
     }
@@ -80,7 +80,9 @@ public class TaskController implements TaskControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate date,
+            LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate,
             @RequestParam(required = false)
             Long meetingId,
             @RequestParam(required = false)
@@ -92,7 +94,7 @@ public class TaskController implements TaskControllerSpecification{
     ) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
         TaskListResponse resp = taskService.listTasks(
-                userDetails.getId(), teamId, date, meetingId, assigneeUserId, pageable
+                userDetails.getId(), teamId, startDate, endDate, meetingId, assigneeUserId, pageable
         );
         return ResponseEntity.ok(DataResponse.from(resp));
     }

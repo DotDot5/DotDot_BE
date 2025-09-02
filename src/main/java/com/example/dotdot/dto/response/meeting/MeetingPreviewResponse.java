@@ -27,6 +27,7 @@ public class MeetingPreviewResponse {
     private String note;
     private List<ParticipantDto> participants;
     private List<AgendaDto> agendas;
+    private int duration;
 
     public static MeetingPreviewResponse from(Meeting meeting, List<Agenda> agendas, List<Participant> participants) {
         return MeetingPreviewResponse.builder()
@@ -38,6 +39,7 @@ public class MeetingPreviewResponse {
                 .note(meeting.getNote())
                 .agendas(agendas.stream().map(AgendaDto::from).collect(Collectors.toList()))
                 .participants(participants.stream().map(ParticipantDto::from).collect(Collectors.toList()))
+                .duration(meeting.getDuration())
                 .build();
     }
 }
