@@ -9,13 +9,8 @@ import com.example.dotdot.dto.response.task.TaskResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.TaskService;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,7 +24,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/v1/")
 @RequiredArgsConstructor
-public class TaskController implements TaskControllerSpecification{
+public class TaskController implements TaskControllerSpecification {
     public final TaskService taskService;
 
     @PostMapping("/teams/{teamId}/tasks")
@@ -37,8 +32,8 @@ public class TaskController implements TaskControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @Valid @RequestBody TaskCreateRequest request
-    ){
-        Long taskId= taskService.createTask(userDetails.getId(),teamId,request);
+    ) {
+        Long taskId = taskService.createTask(userDetails.getId(), teamId, request);
         return ResponseEntity.ok(DataResponse.from(taskId));
     }
 
@@ -46,8 +41,8 @@ public class TaskController implements TaskControllerSpecification{
     public ResponseEntity<DataResponse<TaskResponse>> getTask(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long taskId
-    ){
-        TaskResponse response=taskService.getTask(userDetails.getId(),taskId);
+    ) {
+        TaskResponse response = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.from(response));
     }
 
@@ -56,8 +51,8 @@ public class TaskController implements TaskControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long taskId,
             @Valid @RequestBody TaskUpdateRequest request
-    ){
-        taskService.updateTask(userDetails.getId(),taskId,request);
+    ) {
+        taskService.updateTask(userDetails.getId(), taskId, request);
         TaskResponse resp = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.from(resp));
     }
@@ -69,16 +64,19 @@ public class TaskController implements TaskControllerSpecification{
             @Valid @RequestBody ChangeStatusRequest request
     ) {
         taskService.changeStatus(userDetails.getId(), taskId, request.getStatus());
-        TaskResponse resp = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.ok());
     }
 
+    // ⭐ [수정] 메소드 전체를 아래 코드로 교체합니다.
     @GetMapping("/teams/{teamId}/tasks")
     public ResponseEntity<DataResponse<TaskListResponse>> listTasks(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
+            // [수정] 'date' 파라미터를 'startDate'로 변경하고, 'endDate'를 추가합니다.
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate date,
+            LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate,
             @RequestParam(required = false)
             Long meetingId,
             @RequestParam(required = false)
@@ -89,8 +87,9 @@ public class TaskController implements TaskControllerSpecification{
             String sort
     ) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
+        // [수정] service를 호출할 때 startDate와 endDate를 모두 전달합니다.
         TaskListResponse resp = taskService.listTasks(
-                userDetails.getId(), teamId, date, meetingId, assigneeUserId, pageable
+                userDetails.getId(), teamId, startDate, endDate, meetingId, assigneeUserId, pageable
         );
         return ResponseEntity.ok(DataResponse.from(resp));
     }
@@ -105,7 +104,6 @@ public class TaskController implements TaskControllerSpecification{
     }
 
     private Sort parseSort(String sort) {
-        // 기본 정렬: 상태 오름차순(대기→진행→완료) → 우선순위 내림차순(높음→보통→낮음) → id 오름차순
         Sort defaultSort = Sort.by(Sort.Order.asc("statusOrder"))
                 .and(Sort.by(Sort.Order.desc("priorityOrder")))
                 .and(Sort.by(Sort.Order.asc("id")));
@@ -117,15 +115,13 @@ public class TaskController implements TaskControllerSpecification{
         String dirStr = (arr.length > 1 ? arr[1].trim().toLowerCase() : "asc");
         Sort.Direction dir = "desc".equals(dirStr) ? Sort.Direction.DESC : Sort.Direction.ASC;
 
-        // due 제거: priority/status만 허용
         String property = switch (key) {
-            case "priority" -> "priorityOrder"; // @Formula
-            case "status"   -> "statusOrder";   // @Formula
-            default         -> "statusOrder";   // 잘못된 값이면 상태로 기본
+            case "priority" -> "priorityOrder";
+            case "status" -> "statusOrder";
+            default -> "statusOrder";
         };
 
         return Sort.by(new Sort.Order(dir, property))
-                .and(Sort.by(Sort.Order.asc("id"))); // tie-breaker
+                .and(Sort.by(Sort.Order.asc("id")));
     }
-
 }

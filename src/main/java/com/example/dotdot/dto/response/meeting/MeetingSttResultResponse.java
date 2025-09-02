@@ -12,5 +12,6 @@ public class MeetingSttResultResponse {
     private Long meetingId;
     private String transcript;
     private Integer duration;
+    private String audioId;
     private List<SpeechLogDto> speechLogs;
 }

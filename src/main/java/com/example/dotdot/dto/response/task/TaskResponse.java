@@ -3,7 +3,7 @@ package com.example.dotdot.dto.response.task;
 import com.example.dotdot.domain.task.Task;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -26,7 +26,7 @@ public class TaskResponse {
 
     private String statusLabel;
 
-    private LocalDateTime due;
+    private LocalDate due;
 
     public static TaskResponse from(Task t) {
         Long meetingId = (t.getMeeting() != null) ? t.getMeeting().getId() : null;

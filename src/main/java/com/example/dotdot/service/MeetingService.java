@@ -223,7 +223,7 @@ public class MeetingService {
 
         meeting.setDuration(request.getDuration());
         meeting.setTranscript(request.getTranscript());
-
+        meeting.setAudioId(request.getAudio_id());
         speechLogRepository.deleteAllByMeeting(meeting);
 
         if (request.getSpeechLogs() != null && !request.getSpeechLogs().isEmpty()) {
@@ -263,6 +263,7 @@ public class MeetingService {
                 .meetingId(meeting.getId())
                 .transcript(meeting.getTranscript())
                 .duration(meeting.getDuration())
+                .audioId(meeting.getAudioId())
                 .speechLogs(speechLogDtos)
                 .build();
     }
