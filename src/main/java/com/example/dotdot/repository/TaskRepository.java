@@ -1,6 +1,7 @@
 package com.example.dotdot.repository;
 
 import com.example.dotdot.domain.task.Task;
+import com.example.dotdot.domain.task.TaskPriority;
 import com.example.dotdot.domain.task.TaskStatus;
 import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.domain.Page;
@@ -14,11 +15,13 @@ import java.util.Collection;
 import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
+    void deleteByMeeting_Id(Long meetingId);
 
     @Query("""
       select t from Task t
       where t.team.id = :teamId
         and t.due >= :start and t.due <= :end
+        and ( (:start is null and :end is null) or (t.due >= :start and t.due < :end) )
         and (:meetingId is null or t.meeting.id = :meetingId)
         and (:assigneeUserId is null or t.assignee.user.id = :assigneeUserId)
     """)
@@ -31,6 +34,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             Pageable pageable
     );
 
+    //진행 상황 요약
     interface StatusCount {
         TaskStatus getStatus();
         long getCount();
@@ -41,6 +45,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
       from Task t
       where t.team.id = :teamId
         and t.due >= :start and t.due <= :end
+        and ( (:start is null and :end is null) or (t.due >= :start and t.due < :end) )
         and (:meetingId is null or t.meeting.id = :meetingId)
         and (:assigneeUserId is null or t.assignee.user.id = :assigneeUserId)
       group by t.status

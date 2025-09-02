@@ -2,15 +2,22 @@ package com.example.dotdot.controller;
 
 import com.example.dotdot.domain.task.TaskStatus;
 import com.example.dotdot.dto.request.task.ChangeStatusRequest;
+import com.example.dotdot.dto.request.task.ExtractTasksRequest;
 import com.example.dotdot.dto.request.task.TaskCreateRequest;
 import com.example.dotdot.dto.request.task.TaskUpdateRequest;
+import com.example.dotdot.dto.response.task.ExtractTasksResponse;
 import com.example.dotdot.dto.response.task.TaskListResponse;
 import com.example.dotdot.dto.response.task.TaskResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.security.CustomUserDetails;
 import com.example.dotdot.service.TaskService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -64,15 +71,14 @@ public class TaskController implements TaskControllerSpecification {
             @Valid @RequestBody ChangeStatusRequest request
     ) {
         taskService.changeStatus(userDetails.getId(), taskId, request.getStatus());
+        TaskResponse resp = taskService.getTask(userDetails.getId(), taskId);
         return ResponseEntity.ok(DataResponse.ok());
     }
 
-    // ⭐ [수정] 메소드 전체를 아래 코드로 교체합니다.
     @GetMapping("/teams/{teamId}/tasks")
     public ResponseEntity<DataResponse<TaskListResponse>> listTasks(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
-            // [수정] 'date' 파라미터를 'startDate'로 변경하고, 'endDate'를 추가합니다.
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -87,7 +93,6 @@ public class TaskController implements TaskControllerSpecification {
             String sort
     ) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
-        // [수정] service를 호출할 때 startDate와 endDate를 모두 전달합니다.
         TaskListResponse resp = taskService.listTasks(
                 userDetails.getId(), teamId, startDate, endDate, meetingId, assigneeUserId, pageable
         );
@@ -104,6 +109,7 @@ public class TaskController implements TaskControllerSpecification {
     }
 
     private Sort parseSort(String sort) {
+        // 기본 정렬: 상태 오름차순(대기→진행→완료) → 우선순위 내림차순(높음→보통→낮음) → id 오름차순
         Sort defaultSort = Sort.by(Sort.Order.asc("statusOrder"))
                 .and(Sort.by(Sort.Order.desc("priorityOrder")))
                 .and(Sort.by(Sort.Order.asc("id")));
@@ -115,13 +121,24 @@ public class TaskController implements TaskControllerSpecification {
         String dirStr = (arr.length > 1 ? arr[1].trim().toLowerCase() : "asc");
         Sort.Direction dir = "desc".equals(dirStr) ? Sort.Direction.DESC : Sort.Direction.ASC;
 
+        // due 제거: priority/status만 허용
         String property = switch (key) {
-            case "priority" -> "priorityOrder";
-            case "status" -> "statusOrder";
-            default -> "statusOrder";
+            case "priority" -> "priorityOrder"; // @Formula
+            case "status"   -> "statusOrder";   // @Formula
+            default         -> "statusOrder";   // 잘못된 값이면 상태로 기본
         };
 
         return Sort.by(new Sort.Order(dir, property))
-                .and(Sort.by(Sort.Order.asc("id")));
+                .and(Sort.by(Sort.Order.asc("id"))); // tie-breaker
+    }
+
+    @PostMapping("/{meetingId}/tasks/extract")
+    public ResponseEntity<DataResponse<ExtractTasksResponse>> extractTasks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody(required = false) ExtractTasksRequest request
+    ) {
+        var res = taskService.extractFromTranscript(userDetails.getId(), meetingId, request);
+        return ResponseEntity.ok(DataResponse.from(res));
     }
 }

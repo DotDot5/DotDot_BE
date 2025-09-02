@@ -1,9 +1,6 @@
 package com.example.dotdot.controller;
 
-import com.example.dotdot.dto.request.user.EmailCheckRequest;
-import com.example.dotdot.dto.request.user.LoginRequest;
-import com.example.dotdot.dto.request.user.RefreshTokenRequest;
-import com.example.dotdot.dto.request.user.SignupRequest;
+import com.example.dotdot.dto.request.user.*;
 import com.example.dotdot.dto.response.user.TokenResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.exception.user.InvalidRefreshTokenException;
@@ -78,5 +75,18 @@ public class AuthController implements AuthControllerSpecification {
         Long userId = userDetails.getId();
         authService.logout(userId);
         return ResponseEntity.ok(DataResponse.from("로그아웃 완료"));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<DataResponse<Void>> forgotPassword(
+            @Valid @RequestBody PasswordResetRequest request) {
+        authService.createPasswordResetToken(request.getEmail());
+        return ResponseEntity.ok(DataResponse.ok());
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<DataResponse<Void>> resetPassword(@Valid @RequestBody PasswordUpdateRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(DataResponse.ok());
     }
 }

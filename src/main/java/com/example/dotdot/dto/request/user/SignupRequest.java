@@ -26,6 +26,9 @@ public class SignupRequest {
     @NotBlank(message = "이름은 필수입니다")
     private String name;
 
+    @NotBlank(message = "부서는 필수입니다")
+    private String department;
+
     @NotBlank(message = "직책은 필수입니다")
     private String position;
 
@@ -36,6 +39,7 @@ public class SignupRequest {
                 .password(password)
                 .name(name)
                 .profileImageUrl("basic") // 프로필 이미지 설정 안 했을 경우
+                .department(department)
                 .position(position)
                 .password(password)
                 .build();

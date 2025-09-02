@@ -1,9 +1,6 @@
 package com.example.dotdot.controller;
 
-import com.example.dotdot.dto.request.user.EmailCheckRequest;
-import com.example.dotdot.dto.request.user.LoginRequest;
-import com.example.dotdot.dto.request.user.RefreshTokenRequest;
-import com.example.dotdot.dto.request.user.SignupRequest;
+import com.example.dotdot.dto.request.user.*;
 import com.example.dotdot.dto.response.user.TokenResponse;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
@@ -100,4 +97,29 @@ public interface AuthControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails);
 
 
+    @Operation(summary = "비밀번호 재설정 요청", description = "사용자의 이메일로 비밀번호 재설정 토큰을 발송합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 재설정 요청 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 입력값 (COMMON-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 사용자 (USER-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "비밀번호 재설정 이메일 전송 실패 (USER-009)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PostMapping("/forgot-password")
+    ResponseEntity<DataResponse<Void>> forgotPassword(
+            @Valid @RequestBody PasswordResetRequest request);
+
+
+    @Operation(summary = "비밀번호 재설정", description = "비밀번호 재설정 토큰을 사용하여 비밀번호를 변경합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 재설정 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 입력값 (COMMON-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 비밀번호 재설정 토큰 (USER-007), 비밀번호 재설정 토큰 만료 (USER-008)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PostMapping("/reset-password")
+    ResponseEntity<DataResponse<Void>> resetPassword(@Valid @RequestBody PasswordUpdateRequest request);
 }
