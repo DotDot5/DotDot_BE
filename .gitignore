@@ -35,3 +35,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+src/main/resources/application-local.yml
+
+# GCS 서비스 키
+dotdot_gcs.json
+
+.DS_Store
+
+.env

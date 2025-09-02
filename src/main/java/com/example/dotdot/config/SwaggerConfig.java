@@ -18,7 +18,15 @@ public class SwaggerConfig {
                 .title("DotDot API")
                 .description("DotDot API 목록입니다.");
 
+        SecurityScheme bearerAuth = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT")
+                .in(SecurityScheme.In.HEADER)
+                .name("Authorization");
+
         return new OpenAPI()
-                .info(info);
+                .info(info)
+                .components(new Components().addSecuritySchemes("bearerAuth", bearerAuth));
     }
 }
