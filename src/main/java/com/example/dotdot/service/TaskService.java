@@ -265,7 +265,7 @@ public class TaskService {
             UserTeam ut = nameToUserTeam.get(normalizeName(d.getAssigneeName()));
             if (ut == null) { skipped++; continue; }
 
-            java.time.LocalDateTime due = parseIsoOrDefault(d.getDue(), meeting.getMeetingAt(), defaultDueDays);
+            java.time.LocalDateTime due = parseIsoOrDefault(d.getDue(), meeting.getMeetingAt().toLocalDateTime(), defaultDueDays);
             TaskPriority priority = normalizePriority(d.getPriority()); // HIGH/MEDIUM/LOW
 
             String title = cut(inTitle, 200);

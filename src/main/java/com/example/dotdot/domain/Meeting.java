@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +31,7 @@ public class Meeting {
     private String title;
 
     @Column(name = "meeting_at", nullable = false)
-    private LocalDateTime meetingAt;
+    private ZonedDateTime meetingAt;
 
     @Lob
     @Column(columnDefinition = "LONGTEXT")
@@ -75,7 +76,7 @@ public class Meeting {
         NOT_STARTED, IN_PROGRESS, COMPLETED, FAILED
     }
 
-    public void update(String title, LocalDateTime meetingAt, MeetingMethod meetingMethod, String note) {
+    public void update(String title, ZonedDateTime meetingAt, MeetingMethod meetingMethod, String note) {
         this.title = title;
         this.meetingAt = meetingAt;
         this.meetingMethod = meetingMethod;

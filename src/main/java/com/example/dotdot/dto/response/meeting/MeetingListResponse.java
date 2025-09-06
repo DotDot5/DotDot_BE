@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Builder
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 public class MeetingListResponse {
     private Long meetingId;
     private String title;
-    private LocalDateTime meetingAt;
+    private ZonedDateTime meetingAt;
     private int duration;
     private int participantCount;
     private Long teamId;

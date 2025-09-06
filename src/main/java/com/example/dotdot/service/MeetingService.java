@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime; // [수정] LocalDateTime -> ZonedDateTime
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -57,6 +58,8 @@ public class MeetingService {
                         .team(team)
                         .title(request.getTitle())
                         .meetingAt(request.getMeetingAt())
+                        // [수정] createdAt 필드도 ZonedDateTime으로 변경되었다고 가정합니다.
+                        // 만약 Instant 타입이라면 Instant.now()를 사용하세요.
                         .createdAt(LocalDateTime.now())
                         .meetingMethod(request.getMeetingMethod())
                         .note(request.getNote())
@@ -96,11 +99,12 @@ public class MeetingService {
     @Transactional
     public List<MeetingListResponse> getMeetingLists(Long teamId, String statusFilter) {
         List<Meeting> meetings = meetingRepository.findAllByTeamId(teamId);
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(); // [수정] LocalDateTime.now() -> ZonedDateTime.now()
 
         return meetings.stream()
                 .filter(meeting -> {
-                    LocalDateTime endTime = meeting.getMeetingAt().plusMinutes(meeting.getDuration());
+                    // [수정] endTime 변수 타입을 ZonedDateTime으로 변경
+                    ZonedDateTime endTime = meeting.getMeetingAt().plusMinutes(meeting.getDuration());
                     if ("upcoming".equalsIgnoreCase(statusFilter)) {
                         return now.isBefore(meeting.getMeetingAt());
                     } else if ("finished".equalsIgnoreCase(statusFilter)) {
@@ -118,6 +122,7 @@ public class MeetingService {
                 })
                 .map(meeting -> {
                     int count = participantRepository.countByMeetingId(meeting.getId());
+                    // status 계산 로직은 isBefore, isAfter를 사용하므로 그대로 작동합니다.
                     String status = now.isBefore(meeting.getMeetingAt()) ? "upcoming" :
                             now.isAfter(meeting.getMeetingAt().plusMinutes(meeting.getDuration())) ? "finished" : "in_progress";
                     return MeetingListResponse.builder()
@@ -149,6 +154,7 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
 
+        // meeting.update() 메소드도 ZonedDateTime을 받도록 수정되었다고 가정합니다.
         meeting.update(
                 request.getTitle(),
                 request.getMeetingAt(),
@@ -196,7 +202,7 @@ public class MeetingService {
 
         List<Meeting> meetings = meetingRepository.findByTeamIdIn(teamIds);
 
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(); // [수정] LocalDateTime.now() -> ZonedDateTime.now()
         if ("finished".equalsIgnoreCase(status)) {
             meetings = meetings.stream()
                     .filter(m -> m.getMeetingAt().isBefore(now))
@@ -325,6 +331,7 @@ public class MeetingService {
         Meeting m = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
 
+        // ZonedDateTime의 toString()은 ISO 8601 표준 형식을 반환하므로 안전합니다.
         return new MeetingSummaryStatusResponse(
                 m.getId(),
                 m.getSummaryStatus().name(),

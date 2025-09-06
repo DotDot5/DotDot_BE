@@ -3,13 +3,14 @@ package com.example.dotdot.dto.response.meeting;
 import com.example.dotdot.domain.Meeting;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 public class MyMeetingListResponse {
     public record MeetingListResponse(
             Long meetingId,
             String teamName,
             String title,
-            LocalDateTime meetingAt
+            ZonedDateTime meetingAt
     ) {
         public static MeetingListResponse from(Meeting meeting) {
             return new MeetingListResponse(
