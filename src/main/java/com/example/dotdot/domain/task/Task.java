@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.Formula;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Entity
@@ -57,7 +57,7 @@ public class Task {
     private TaskPriority priority = TaskPriority.MEDIUM;
 
     @Column(nullable = false)
-    private LocalDate due;
+    private LocalDateTime due;
 
     @Formula("case priority when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 99 end")
     private int priorityOrder;
@@ -74,7 +74,7 @@ public class Task {
                        UserTeam assignee,
                        TaskPriority priority,
                        TaskStatus status,
-                       LocalDate due) {
+                       LocalDateTime due) {
         if (title != null && !title.isBlank()) this.title = title;
         if (description != null) this.description = description;
         if (assignee != null) this.assignee = assignee;
@@ -89,7 +89,7 @@ public class Task {
                           String description,
                           TaskPriority priority,
                           TaskStatus status,
-                          LocalDate due) {
+                          LocalDateTime due) {
         return Task.builder()
                 .team(team)
                 .meeting(meeting)
