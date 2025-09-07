@@ -80,9 +80,7 @@ public class TaskController implements TaskControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate endDate,
+            LocalDate date,
             @RequestParam(required = false)
             Long meetingId,
             @RequestParam(required = false)
@@ -94,7 +92,7 @@ public class TaskController implements TaskControllerSpecification {
     ) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
         TaskListResponse resp = taskService.listTasks(
-                userDetails.getId(), teamId, startDate, endDate, meetingId, assigneeUserId, pageable
+                userDetails.getId(), teamId, date, meetingId, assigneeUserId, pageable
         );
         return ResponseEntity.ok(DataResponse.from(resp));
     }

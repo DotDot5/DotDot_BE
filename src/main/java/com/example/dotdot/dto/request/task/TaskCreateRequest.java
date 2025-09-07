@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -30,7 +30,7 @@ public class TaskCreateRequest {
     private TaskStatus status;
 
     @NotNull
-    private LocalDate due;
+    private LocalDateTime due;
 
     @Schema(description = "연결할 회의 ID, 회의 없이 생성 시 null")
     private Long meetingId; // 선택 필드
