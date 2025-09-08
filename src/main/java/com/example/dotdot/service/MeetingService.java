@@ -96,35 +96,39 @@ public class MeetingService {
         return meeting.getId();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<MeetingListResponse> getMeetingLists(Long teamId, String statusFilter) {
         List<Meeting> meetings = meetingRepository.findAllByTeamId(teamId);
-        ZonedDateTime now = ZonedDateTime.now(); // [수정] LocalDateTime.now() -> ZonedDateTime.now()
+        ZonedDateTime now = ZonedDateTime.now();
 
+        Meeting.MeetingStatus parsedStatus = null;
+        if (statusFilter != null && !statusFilter.isBlank()) {
+            String s = statusFilter.trim().toUpperCase();
+            try {
+                parsedStatus = Meeting.MeetingStatus.valueOf(s);
+            } catch (IllegalArgumentException ignore) {
+                parsedStatus = null; // 잘못된 값이면 전체 반환
+            }
+        }
+        final Meeting.MeetingStatus wanted = parsedStatus;
         return meetings.stream()
-                .filter(meeting -> {
-                    // [수정] endTime 변수 타입을 ZonedDateTime으로 변경
-                    ZonedDateTime endTime = meeting.getMeetingAt().plusMinutes(meeting.getDuration());
-                    if ("upcoming".equalsIgnoreCase(statusFilter)) {
-                        return now.isBefore(meeting.getMeetingAt());
-                    } else if ("finished".equalsIgnoreCase(statusFilter)) {
-                        return now.isAfter(endTime);
+                .peek(m -> {
+                    if (m.getStatus() == null) {
+                        m.refreshStatusByTime(now);
                     }
-                    return true;
                 })
+                .filter(m -> wanted == null || m.getStatus() == wanted)
                 .sorted((m1, m2) -> {
-                    if ("finished".equalsIgnoreCase(statusFilter)) {
+                    if (wanted == Meeting.MeetingStatus.FINISHED) {
                         return m2.getMeetingAt().compareTo(m1.getMeetingAt());
-                    } else if ("upcoming".equalsIgnoreCase(statusFilter)) {
+                    } else if (wanted == Meeting.MeetingStatus.SCHEDULED) {
+                        return m1.getMeetingAt().compareTo(m2.getMeetingAt());
+                    } else {
                         return m1.getMeetingAt().compareTo(m2.getMeetingAt());
                     }
-                    return 0;
                 })
                 .map(meeting -> {
                     int count = participantRepository.countByMeetingId(meeting.getId());
-                    // status 계산 로직은 isBefore, isAfter를 사용하므로 그대로 작동합니다.
-                    String status = now.isBefore(meeting.getMeetingAt()) ? "upcoming" :
-                            now.isAfter(meeting.getMeetingAt().plusMinutes(meeting.getDuration())) ? "finished" : "in_progress";
                     return MeetingListResponse.builder()
                             .meetingId(meeting.getId())
                             .title(meeting.getTitle())
@@ -137,6 +141,7 @@ public class MeetingService {
                 })
                 .toList();
     }
+
 
     @Transactional
     public MeetingPreviewResponse getMeetingPreview(Long meetingId) {
@@ -192,6 +197,19 @@ public class MeetingService {
         return meetingId;
     }
 
+    @Transactional
+    public Long updateMeetingStatus(Long meetingId, Meeting.MeetingStatus status) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getStatus() == Meeting.MeetingStatus.FINISHED && status != Meeting.MeetingStatus.FINISHED) {
+            throw new IllegalStateException("이미 종료된 회의 상태는 되돌릴 수 없습니다.");
+        }
+
+        meeting.setStatus(status);
+        return meeting.getId();
+    }
+
     @Transactional(readOnly = true)
     public List<MeetingListResponse> getMyMeetingList(Long userId, String status, String sort) {
         User user = getUserOrThrow(userId);
@@ -202,14 +220,22 @@ public class MeetingService {
 
         List<Meeting> meetings = meetingRepository.findByTeamIdIn(teamIds);
 
-        ZonedDateTime now = ZonedDateTime.now(); // [수정] LocalDateTime.now() -> ZonedDateTime.now()
-        if ("finished".equalsIgnoreCase(status)) {
+        if (status != null && !status.isBlank()) {
+            String s = status.trim().toUpperCase();
             meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isBefore(now))
-                    .collect(Collectors.toList());
-        } else if ("upcoming".equalsIgnoreCase(status)) {
-            meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isAfter(now))
+                    .filter(m -> {
+                        switch (s) {
+                            case "SCHEDULED":
+                            case "upcoming":
+                                return m.getStatus() == Meeting.MeetingStatus.SCHEDULED;
+                            case "IN_PROGRESS":
+                                return m.getStatus() == Meeting.MeetingStatus.IN_PROGRESS;
+                            case "FINISHED":
+                                return m.getStatus() == Meeting.MeetingStatus.FINISHED;
+                            default:
+                                return true;
+                        }
+                    })
                     .collect(Collectors.toList());
         }
 

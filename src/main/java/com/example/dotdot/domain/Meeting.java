@@ -68,6 +68,12 @@ public class Meeting {
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SpeechLog> speechLogs = new ArrayList<>();
 
+    public enum MeetingStatus { SCHEDULED, IN_PROGRESS, FINISHED }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private MeetingStatus status = MeetingStatus.SCHEDULED;
+
     public enum MeetingMethod {
         RECORD, REALTIME
     }
@@ -91,6 +97,24 @@ public class Meeting {
     public void removeSpeechLog(SpeechLog log) {
         this.speechLogs.remove(log);
         log.setMeeting(null);
+    }
+
+    public ZonedDateTime getEndTime() {
+        return meetingAt.plusMinutes(duration);
+    }
+
+    public void refreshStatusByTime(ZonedDateTime now) {
+        if (now.isBefore(meetingAt)) {
+            this.status = MeetingStatus.SCHEDULED;
+        } else if (now.isAfter(getEndTime())) {
+            this.status = MeetingStatus.FINISHED;
+        } else {
+            this.status = MeetingStatus.IN_PROGRESS;
+        }
+    }
+
+    public void markFinished() {
+        this.status = MeetingStatus.FINISHED;
     }
 }
 
