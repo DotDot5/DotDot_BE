@@ -1,6 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
+import com.example.dotdot.dto.request.meeting.MeetingStatusUpdateRequest;
 import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
@@ -150,6 +151,26 @@ public interface MeetingControllerSpecification {
     ResponseEntity<DataResponse<MeetingSummaryStatusResponse>> getSummaryStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
+    );
+
+    @Operation(
+            summary = "회의 상태 변경",
+            description = "회의 상태를 변경합니다. (SCHEDULED, IN_PROGRESS, FINISHED)"
+    )
+    @SecurityRequirement(name = "bearerAuth") // 공개로 할 거면 이 줄 제거
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상태 조회 성공",
+                    content = @Content(schema = @Schema(implementation = DataResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PatchMapping("/{meetingId}/status")
+    ResponseEntity<DataResponse<Long>> updateStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody @Valid MeetingStatusUpdateRequest req
     );
 
 }

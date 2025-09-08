@@ -192,6 +192,19 @@ public class MeetingService {
         return meetingId;
     }
 
+    @Transactional
+    public Long updateMeetingStatus(Long meetingId, Meeting.MeetingStatus status) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getStatus() == Meeting.MeetingStatus.FINISHED && status != Meeting.MeetingStatus.FINISHED) {
+            throw new IllegalStateException("이미 종료된 회의 상태는 되돌릴 수 없습니다.");
+        }
+
+        meeting.setStatus(status);
+        return meeting.getId();
+    }
+
     @Transactional(readOnly = true)
     public List<MeetingListResponse> getMyMeetingList(Long userId, String status, String sort) {
         User user = getUserOrThrow(userId);
