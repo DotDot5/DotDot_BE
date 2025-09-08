@@ -33,6 +33,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             Pageable pageable
     );
 
+    void deleteAllByMeetingId(Long meetingId);
+
     //진행 상황 요약
     interface StatusCount {
         TaskStatus getStatus();

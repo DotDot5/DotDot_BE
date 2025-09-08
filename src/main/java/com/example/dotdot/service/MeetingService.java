@@ -3,8 +3,8 @@ package com.example.dotdot.service;
 import com.example.dotdot.domain.*;
 import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
 import com.example.dotdot.dto.request.meeting.SpeechLogDto;
-import com.example.dotdot.repository.MeetingRepository;
-import com.example.dotdot.repository.SpeechLogRepository;
+import com.example.dotdot.global.exception.AppException;
+import com.example.dotdot.repository.*;
 import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
@@ -17,11 +17,6 @@ import com.example.dotdot.global.client.OpenAISummaryClient;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
-import com.example.dotdot.repository.AgendaRepository;
-import com.example.dotdot.repository.ParticipantRepository;
-import com.example.dotdot.repository.TeamRepository;
-import com.example.dotdot.repository.UserRepository;
-import com.example.dotdot.repository.UserTeamRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +29,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
+import static com.example.dotdot.global.exception.meeting.MeetingErrorCode.MEETING_DELETE_FORBIDDEN;
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
 @Service
@@ -47,6 +43,8 @@ public class MeetingService {
     private final UserTeamRepository userTeamRepository;
     private final OpenAISummaryClient summaryClient;
     private final SpeechLogRepository speechLogRepository;
+    private final RecommendationRepository recommendationRepository;
+    private final TaskRepository taskRepository;
 
     @Transactional
     public Long createMeeting(CreateMeetingRequest request) {
@@ -364,5 +362,22 @@ public class MeetingService {
                 m.getSummaryStatus() == Meeting.SummaryStatus.COMPLETED ? m.getSummary() : null,
                 m.getSummaryUpdatedAt() == null ? null : m.getSummaryUpdatedAt().toString()
         );
+    }
+
+    @Transactional
+    public void deleteMeeting(Long userId, Long meetingId) {
+        User user = getUserOrThrow(userId);
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        Team team = meeting.getTeam();
+        userTeamRepository.findByTeam(team).stream()
+                .filter(ut -> ut.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new AppException(MEETING_DELETE_FORBIDDEN));
+        agendaRepository.deleteAllByMeetingId(meetingId);
+        participantRepository.deleteAllByMeetingId(meetingId);
+        meetingRepository.deleteById(meetingId);
+        recommendationRepository.deleteAllByMeetingId(meetingId);
+        taskRepository.deleteAllByMeetingId(meetingId);
     }
 }

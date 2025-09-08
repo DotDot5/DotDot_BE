@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface RecommendationRepository extends JpaRepository<Recommendation,Long> {
     List<Recommendation> findAllByMeetingOrderByPriorityAsc(Meeting meeting);
+
+    void deleteAllByMeetingId(Long meetingId);
 }

@@ -181,4 +181,23 @@ public interface MeetingControllerSpecification {
             @RequestBody @Valid MeetingStatusUpdateRequest req
     );
 
+    @Operation(summary = "회의 삭제", description = "회의를 삭제합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "회의 삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회원 (USER-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "회의 삭제 권한 없음 (MEETING-003)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @DeleteMapping("/{meetingId}")
+    ResponseEntity<DataResponse<Void>> deleteMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
+    );
+
 }
