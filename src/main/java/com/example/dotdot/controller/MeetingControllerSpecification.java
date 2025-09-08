@@ -92,7 +92,11 @@ public interface MeetingControllerSpecification {
     ResponseEntity<DataResponse<List<MeetingListResponse>>> getMyMeetingList(
             @AuthenticationPrincipal CustomUserDetails userDetails,
 
-            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
+            @Parameter(
+                    description = "회의 상태 필터. " +
+                            "지원값: SCHEDULED, IN_PROGRESS, FINISHED. " +
+                            "대소문자 무시, 미지정 시 전체."
+            )
             @RequestParam(required = false) String status,
 
             @Parameter(description = "정렬 순서 (asc 또는 desc)", example = "desc")

@@ -215,14 +215,21 @@ public class MeetingService {
 
         List<Meeting> meetings = meetingRepository.findByTeamIdIn(teamIds);
 
-        ZonedDateTime now = ZonedDateTime.now(); // [수정] LocalDateTime.now() -> ZonedDateTime.now()
-        if ("finished".equalsIgnoreCase(status)) {
+        if (status != null && !status.isBlank()) {
+            String s = status.trim().toUpperCase();
             meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isBefore(now))
-                    .collect(Collectors.toList());
-        } else if ("upcoming".equalsIgnoreCase(status)) {
-            meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isAfter(now))
+                    .filter(m -> {
+                        switch (s) {
+                            case "SCHEDULED":
+                                return m.getStatus() == Meeting.MeetingStatus.SCHEDULED;
+                            case "IN_PROGRESS":
+                                return m.getStatus() == Meeting.MeetingStatus.IN_PROGRESS;
+                            case "FINISHED":
+                                return m.getStatus() == Meeting.MeetingStatus.FINISHED;
+                            default:
+                                return true;
+                        }
+                    })
                     .collect(Collectors.toList());
         }
 
