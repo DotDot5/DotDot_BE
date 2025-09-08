@@ -52,7 +52,11 @@ public interface MeetingControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
 
-            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
+            @Parameter(
+                    description = "회의 상태 필터. " +
+                            "지원값: SCHEDULED, IN_PROGRESS, FINISHED. " +
+                            "대소문자 무시, 미지정 시 전체."
+            )
             @RequestParam(required = false) String status
     );
 
