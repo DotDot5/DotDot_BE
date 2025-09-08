@@ -14,4 +14,6 @@ public interface SpeechLogRepository extends JpaRepository<SpeechLog, Long> {
 
     // meeting 객체를 인자로 받아 조회
     List<SpeechLog> findByMeeting(Meeting meeting);
+
+    void deleteAllByMeetingId(Long meetingId);
 }

@@ -150,4 +150,12 @@ public class MeetingController implements MeetingControllerSpecification{
         }
     }
 
+    @DeleteMapping("/{meetingId}")
+    public ResponseEntity<DataResponse<Void>> deleteMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId) {
+        meetingService.deleteMeeting(userDetails.getId(), meetingId);
+        return ResponseEntity.ok(DataResponse.ok());
+    }
+
 }
