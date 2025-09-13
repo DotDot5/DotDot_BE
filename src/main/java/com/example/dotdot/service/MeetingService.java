@@ -281,6 +281,7 @@ public class MeetingService {
         List<SpeechLogDto> speechLogDtos = speechLogs.stream()
                 .map(log -> {
                     SpeechLogDto dto = new SpeechLogDto();
+                    dto.setSpeechLogId(log.getId());
                     dto.setSpeakerIndex(log.getSpeakerIndex());
                     dto.setText(log.getText());
                     dto.setStartTime(log.getStartTime());
