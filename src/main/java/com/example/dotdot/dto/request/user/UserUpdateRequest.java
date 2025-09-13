@@ -23,4 +23,7 @@ public class UserUpdateRequest {
 
     @Schema(description = "부서", example = "개발팀")
     private String department;
+
+    @Schema(description = "프로필 이미지 URL", example = "https://...")
+    private String profileImageUrl;
 }

@@ -8,6 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class SpeechLogDto {
+    private Long speechLogId;
     private int speakerIndex;
     private String text;
     private int startTime;
