@@ -1,6 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
+import com.example.dotdot.dto.request.meeting.MeetingStatusUpdateRequest;
 import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
 import com.example.dotdot.global.dto.DataResponse;
@@ -56,6 +57,15 @@ public class MeetingController implements MeetingControllerSpecification{
             @PathVariable Long meetingId,
             @RequestBody @Valid CreateMeetingRequest request) {
         Long updatedId = meetingService.updateMeeting(meetingId, request);
+        return ResponseEntity.ok(DataResponse.from(updatedId));
+    }
+    @PatchMapping("/{meetingId}/status")
+    public ResponseEntity<DataResponse<Long>> updateStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody @Valid MeetingStatusUpdateRequest req
+    ) {
+        Long updatedId = meetingService.updateMeetingStatus(meetingId, req.getStatus());
         return ResponseEntity.ok(DataResponse.from(updatedId));
     }
 
@@ -138,6 +148,14 @@ public class MeetingController implements MeetingControllerSpecification{
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @DeleteMapping("/{meetingId}")
+    public ResponseEntity<DataResponse<Void>> deleteMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId) {
+        meetingService.deleteMeeting(userDetails.getId(), meetingId);
+        return ResponseEntity.ok(DataResponse.ok());
     }
 
 }

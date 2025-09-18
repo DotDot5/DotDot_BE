@@ -3,8 +3,8 @@ package com.example.dotdot.service;
 import com.example.dotdot.domain.*;
 import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
 import com.example.dotdot.dto.request.meeting.SpeechLogDto;
-import com.example.dotdot.repository.MeetingRepository;
-import com.example.dotdot.repository.SpeechLogRepository;
+import com.example.dotdot.global.exception.AppException;
+import com.example.dotdot.repository.*;
 import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
 import com.example.dotdot.dto.request.meeting.ParticipantDto;
@@ -17,22 +17,19 @@ import com.example.dotdot.global.client.OpenAISummaryClient;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
-import com.example.dotdot.repository.AgendaRepository;
-import com.example.dotdot.repository.ParticipantRepository;
-import com.example.dotdot.repository.TeamRepository;
-import com.example.dotdot.repository.UserRepository;
-import com.example.dotdot.repository.UserTeamRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime; // [수정] LocalDateTime -> ZonedDateTime
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 
+import static com.example.dotdot.global.exception.meeting.MeetingErrorCode.MEETING_DELETE_FORBIDDEN;
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
 @Service
@@ -46,6 +43,8 @@ public class MeetingService {
     private final UserTeamRepository userTeamRepository;
     private final OpenAISummaryClient summaryClient;
     private final SpeechLogRepository speechLogRepository;
+    private final RecommendationRepository recommendationRepository;
+    private final TaskRepository taskRepository;
 
     @Transactional
     public Long createMeeting(CreateMeetingRequest request) {
@@ -57,6 +56,8 @@ public class MeetingService {
                         .team(team)
                         .title(request.getTitle())
                         .meetingAt(request.getMeetingAt())
+                        // [수정] createdAt 필드도 ZonedDateTime으로 변경되었다고 가정합니다.
+                        // 만약 Instant 타입이라면 Instant.now()를 사용하세요.
                         .createdAt(LocalDateTime.now())
                         .meetingMethod(request.getMeetingMethod())
                         .note(request.getNote())
@@ -93,33 +94,39 @@ public class MeetingService {
         return meeting.getId();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<MeetingListResponse> getMeetingLists(Long teamId, String statusFilter) {
         List<Meeting> meetings = meetingRepository.findAllByTeamId(teamId);
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now();
 
+        Meeting.MeetingStatus parsedStatus = null;
+        if (statusFilter != null && !statusFilter.isBlank()) {
+            String s = statusFilter.trim().toUpperCase();
+            try {
+                parsedStatus = Meeting.MeetingStatus.valueOf(s);
+            } catch (IllegalArgumentException ignore) {
+                parsedStatus = null; // 잘못된 값이면 전체 반환
+            }
+        }
+        final Meeting.MeetingStatus wanted = parsedStatus;
         return meetings.stream()
-                .filter(meeting -> {
-                    LocalDateTime endTime = meeting.getMeetingAt().plusMinutes(meeting.getDuration());
-                    if ("upcoming".equalsIgnoreCase(statusFilter)) {
-                        return now.isBefore(meeting.getMeetingAt());
-                    } else if ("finished".equalsIgnoreCase(statusFilter)) {
-                        return now.isAfter(endTime);
+                .peek(m -> {
+                    if (m.getStatus() == null) {
+                        m.refreshStatusByTime(now);
                     }
-                    return true;
                 })
+                .filter(m -> wanted == null || m.getStatus() == wanted)
                 .sorted((m1, m2) -> {
-                    if ("finished".equalsIgnoreCase(statusFilter)) {
+                    if (wanted == Meeting.MeetingStatus.FINISHED) {
                         return m2.getMeetingAt().compareTo(m1.getMeetingAt());
-                    } else if ("upcoming".equalsIgnoreCase(statusFilter)) {
+                    } else if (wanted == Meeting.MeetingStatus.SCHEDULED) {
+                        return m1.getMeetingAt().compareTo(m2.getMeetingAt());
+                    } else {
                         return m1.getMeetingAt().compareTo(m2.getMeetingAt());
                     }
-                    return 0;
                 })
                 .map(meeting -> {
                     int count = participantRepository.countByMeetingId(meeting.getId());
-                    String status = now.isBefore(meeting.getMeetingAt()) ? "upcoming" :
-                            now.isAfter(meeting.getMeetingAt().plusMinutes(meeting.getDuration())) ? "finished" : "in_progress";
                     return MeetingListResponse.builder()
                             .meetingId(meeting.getId())
                             .title(meeting.getTitle())
@@ -132,6 +139,7 @@ public class MeetingService {
                 })
                 .toList();
     }
+
 
     @Transactional
     public MeetingPreviewResponse getMeetingPreview(Long meetingId) {
@@ -149,6 +157,7 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
 
+        // meeting.update() 메소드도 ZonedDateTime을 받도록 수정되었다고 가정합니다.
         meeting.update(
                 request.getTitle(),
                 request.getMeetingAt(),
@@ -186,6 +195,19 @@ public class MeetingService {
         return meetingId;
     }
 
+    @Transactional
+    public Long updateMeetingStatus(Long meetingId, Meeting.MeetingStatus status) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getStatus() == Meeting.MeetingStatus.FINISHED && status != Meeting.MeetingStatus.FINISHED) {
+            throw new IllegalStateException("이미 종료된 회의 상태는 되돌릴 수 없습니다.");
+        }
+
+        meeting.setStatus(status);
+        return meeting.getId();
+    }
+
     @Transactional(readOnly = true)
     public List<MeetingListResponse> getMyMeetingList(Long userId, String status, String sort) {
         User user = getUserOrThrow(userId);
@@ -196,14 +218,22 @@ public class MeetingService {
 
         List<Meeting> meetings = meetingRepository.findByTeamIdIn(teamIds);
 
-        LocalDateTime now = LocalDateTime.now();
-        if ("finished".equalsIgnoreCase(status)) {
+        if (status != null && !status.isBlank()) {
+            String s = status.trim().toUpperCase();
             meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isBefore(now))
-                    .collect(Collectors.toList());
-        } else if ("upcoming".equalsIgnoreCase(status)) {
-            meetings = meetings.stream()
-                    .filter(m -> m.getMeetingAt().isAfter(now))
+                    .filter(m -> {
+                        switch (s) {
+                            case "SCHEDULED":
+                            case "upcoming":
+                                return m.getStatus() == Meeting.MeetingStatus.SCHEDULED;
+                            case "IN_PROGRESS":
+                                return m.getStatus() == Meeting.MeetingStatus.IN_PROGRESS;
+                            case "FINISHED":
+                                return m.getStatus() == Meeting.MeetingStatus.FINISHED;
+                            default:
+                                return true;
+                        }
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -251,6 +281,7 @@ public class MeetingService {
         List<SpeechLogDto> speechLogDtos = speechLogs.stream()
                 .map(log -> {
                     SpeechLogDto dto = new SpeechLogDto();
+                    dto.setSpeechLogId(log.getId());
                     dto.setSpeakerIndex(log.getSpeakerIndex());
                     dto.setText(log.getText());
                     dto.setStartTime(log.getStartTime());
@@ -325,11 +356,29 @@ public class MeetingService {
         Meeting m = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
 
+        // ZonedDateTime의 toString()은 ISO 8601 표준 형식을 반환하므로 안전합니다.
         return new MeetingSummaryStatusResponse(
                 m.getId(),
                 m.getSummaryStatus().name(),
                 m.getSummaryStatus() == Meeting.SummaryStatus.COMPLETED ? m.getSummary() : null,
                 m.getSummaryUpdatedAt() == null ? null : m.getSummaryUpdatedAt().toString()
         );
+    }
+
+    @Transactional
+    public void deleteMeeting(Long userId, Long meetingId) {
+        User user = getUserOrThrow(userId);
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        Team team = meeting.getTeam();
+        userTeamRepository.findByTeam(team).stream()
+                .filter(ut -> ut.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new AppException(MEETING_DELETE_FORBIDDEN));
+        agendaRepository.deleteAllByMeetingId(meetingId);
+        participantRepository.deleteAllByMeetingId(meetingId);
+        meetingRepository.deleteById(meetingId);
+        recommendationRepository.deleteAllByMeetingId(meetingId);
+        taskRepository.deleteAllByMeetingId(meetingId);
     }
 }

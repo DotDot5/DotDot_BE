@@ -1,6 +1,7 @@
 package com.example.dotdot.controller;
 
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
+import com.example.dotdot.dto.request.meeting.MeetingStatusUpdateRequest;
 import com.example.dotdot.dto.response.meeting.*;
 import com.example.dotdot.global.dto.DataResponse;
 import com.example.dotdot.global.dto.ErrorResponse;
@@ -51,7 +52,11 @@ public interface MeetingControllerSpecification {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
 
-            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
+            @Parameter(
+                    description = "회의 상태 필터. " +
+                            "지원값: SCHEDULED, IN_PROGRESS, FINISHED. " +
+                            "대소문자 무시, 미지정 시 전체."
+            )
             @RequestParam(required = false) String status
     );
 
@@ -91,7 +96,11 @@ public interface MeetingControllerSpecification {
     ResponseEntity<DataResponse<List<MeetingListResponse>>> getMyMeetingList(
             @AuthenticationPrincipal CustomUserDetails userDetails,
 
-            @Parameter(description = "회의 상태 필터 (upcoming or finished)", example = "upcoming")
+            @Parameter(
+                    description = "회의 상태 필터. " +
+                            "지원값: SCHEDULED, IN_PROGRESS, FINISHED. " +
+                            "대소문자 무시, 미지정 시 전체."
+            )
             @RequestParam(required = false) String status,
 
             @Parameter(description = "정렬 순서 (asc 또는 desc)", example = "desc")
@@ -150,6 +159,45 @@ public interface MeetingControllerSpecification {
     ResponseEntity<DataResponse<MeetingSummaryStatusResponse>> getSummaryStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "회의 ID", example = "11") @PathVariable Long meetingId
+    );
+
+    @Operation(
+            summary = "회의 상태 변경",
+            description = "회의 상태를 변경합니다. (SCHEDULED, IN_PROGRESS, FINISHED)"
+    )
+    @SecurityRequirement(name = "bearerAuth") // 공개로 할 거면 이 줄 제거
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상태 조회 성공",
+                    content = @Content(schema = @Schema(implementation = DataResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PatchMapping("/{meetingId}/status")
+    ResponseEntity<DataResponse<Long>> updateStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId,
+            @RequestBody @Valid MeetingStatusUpdateRequest req
+    );
+
+    @Operation(summary = "회의 삭제", description = "회의를 삭제합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "회의 삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (USER-006)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회원 (USER-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 회의 (MEETING-001)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "회의 삭제 권한 없음 (MEETING-003)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @DeleteMapping("/{meetingId}")
+    ResponseEntity<DataResponse<Void>> deleteMeeting(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long meetingId
     );
 
 }

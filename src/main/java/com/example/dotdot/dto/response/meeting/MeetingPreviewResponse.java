@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,7 +23,7 @@ public class MeetingPreviewResponse {
     private Long meetingId;
     private Long teamId;
     private String title;
-    private LocalDateTime meetingAt;
+    private ZonedDateTime meetingAt;
     private String meetingMethod;
     private String note;
     private List<ParticipantDto> participants;

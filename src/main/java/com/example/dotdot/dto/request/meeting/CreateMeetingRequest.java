@@ -4,13 +4,14 @@ import com.example.dotdot.domain.Meeting;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Data
 public class CreateMeetingRequest {
     private Long teamId;
     private String title;
-    private LocalDateTime meetingAt;
+    private ZonedDateTime meetingAt;
     private Meeting.MeetingMethod meetingMethod;
     private String note;
 

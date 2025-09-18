@@ -68,14 +68,20 @@ public class TaskService {
 
         checkMembershipOrThrow(user,team);
 
+        Long meetingId = request.getMeetingId();
+        if (meetingId != null && meetingId <= 0) {
+            meetingId = null; // 0, 음수는 회의 없음으로 간주
+        }
+
         Meeting meeting = null;
-        if (request.getMeetingId() != null && request.getMeetingId() > 0) {
+        if(meetingId!=null) {
             meeting = meetingRepository.findById(request.getMeetingId())
                     .orElseThrow(() -> new MeetingNotFoundException(MEETING_NOT_FOUND));
             if (!meeting.getTeam().getId().equals(team.getId())) {
-                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM);
+                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM); // 없으면 FORBIDDEN으로 대체
             }
         }
+
 
         Task saved = taskRepository.save(Task.of(
                 team, meeting, assignee,
@@ -144,9 +150,8 @@ public class TaskService {
     public TaskListResponse listTasks(
             Long userId,
             Long teamId,
-            LocalDate startDate,
-            LocalDate endDate,
-            Long meetingIdOrNull,
+            LocalDate date,                 // 달력 선택 날짜 (null이면 오늘)
+            Long meetingIdOrNull,           // 회의 필터 (null이면 전체)
             Long assigneeUserIdOrNull,
             Pageable pageable) {
 
@@ -154,16 +159,19 @@ public class TaskService {
         Team team = getTeamOrThrow(teamId);
         checkMembershipOrThrow(user, team);
 
-        // [수정] 날짜 파라미터가 null일 경우를 대비해 기본값을 설정합니다.
-        LocalDate searchStartDate = (startDate != null) ? startDate : LocalDate.now();
-        LocalDate searchEndDate = (endDate != null) ? endDate : searchStartDate;
+        LocalDateTime start = null;
+        LocalDateTime end   = null;
+        if (date != null) {
+            start = date.atStartOfDay();
+            end   = date.plusDays(1).atStartOfDay();
+        }
 
         Page<Task> page = taskRepository.searchTeamTasks(
-                teamId, searchStartDate, searchEndDate, meetingIdOrNull, assigneeUserIdOrNull, pageable
+                teamId, start, end, meetingIdOrNull, assigneeUserIdOrNull, pageable
         );
 
         Map<TaskStatus, Long> counts = new EnumMap<>(TaskStatus.class);
-        taskRepository.countByStatusForTeam(teamId, searchStartDate, searchEndDate, meetingIdOrNull, assigneeUserIdOrNull)
+        taskRepository.countByStatusForTeam(teamId, start, end, meetingIdOrNull, assigneeUserIdOrNull)
                 .forEach(sc -> counts.put(sc.getStatus(), sc.getCount()));
 
         long todo = counts.getOrDefault(TaskStatus.TODO, 0L);
@@ -265,7 +273,7 @@ public class TaskService {
             UserTeam ut = nameToUserTeam.get(normalizeName(d.getAssigneeName()));
             if (ut == null) { skipped++; continue; }
 
-            java.time.LocalDateTime due = parseIsoOrDefault(d.getDue(), meeting.getMeetingAt(), defaultDueDays);
+            java.time.LocalDateTime due = parseIsoOrDefault(d.getDue(), meeting.getMeetingAt().toLocalDateTime(), defaultDueDays);
             TaskPriority priority = normalizePriority(d.getPriority()); // HIGH/MEDIUM/LOW
 
             String title = cut(inTitle, 200);
@@ -288,7 +296,7 @@ public class TaskService {
                         desc,
                         (priority == null ? TaskPriority.MEDIUM : priority),
                         TaskStatus.TODO,
-                        due.toLocalDate()
+                        due
                 );
                 taskRepository.save(saved);
                 created++;

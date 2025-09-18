@@ -52,20 +52,23 @@ public class UserService {
 
         user.updateUserInfo(request);
 
+        if (request.getProfileImageUrl() != null) {
+            user.updateProfileImageUrl(request.getProfileImageUrl());
+        }
+
         return UserInfoResponse.from(user);
     }
 
     public String updateProfileImage(Long userId, MultipartFile input) {
         User user = findUserById(userId);
 
-        String fileName = UUID.randomUUID().toString();
+        String fileName = "profiles/" + UUID.randomUUID().toString();
         String ext = input.getContentType();
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, fileName)
                 .setContentType(ext)
                 .build();
         try {
             storage.create(blobInfo, input.getInputStream());
-
             String imageUrl = "https://storage.googleapis.com/" + bucketName + "/" + fileName;
 
             user.updateProfileImageUrl(imageUrl);
@@ -83,11 +86,12 @@ public class UserService {
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
     }
 
-    // 회원 탈퇴 기능 추가
+    // 회원 탈퇴 기능
     public void withdrawal(Long userId) {
         User user = findUserById(userId);
         userRepository.delete(user);
     }
+
     public User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));

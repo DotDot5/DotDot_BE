@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("api/v1/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Tag(name = "UserController", description = "User 관련 API")
 public class UserController implements UserControllerSpecification{
@@ -61,7 +61,6 @@ public class UserController implements UserControllerSpecification{
     }
 
 
-    // ✨ 회원 탈퇴 기능 추가
     @DeleteMapping("/me/withdrawal")
     public ResponseEntity<DataResponse<Void>> withdrawal(@AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails.getId();
