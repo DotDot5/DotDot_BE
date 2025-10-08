@@ -75,7 +75,7 @@ public class Meeting {
     private MeetingStatus status = MeetingStatus.SCHEDULED;
 
     public enum MeetingMethod {
-        RECORD, REALTIME
+        RECORD, REALTIME, NONE
     }
 
     public enum SummaryStatus {
