@@ -12,6 +12,6 @@ public class SttResultUpdateRequest {
     private int duration;
     private String transcript;
     @JsonProperty("audio_id")
-    private String audioId;  String audio_id;
+    private String audioId;
     private List<SpeechLogDto> speechLogs;
 }
