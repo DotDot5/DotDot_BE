@@ -1,6 +1,7 @@
 package com.example.dotdot.dto.request.meeting;
 
 import com.example.dotdot.dto.request.meeting.SpeechLogDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 public class SttResultUpdateRequest {
     private int duration;
     private String transcript;
-    private String audio_id;
+    @JsonProperty("audio_id")
+    private String audioId;
     private List<SpeechLogDto> speechLogs;
 }

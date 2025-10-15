@@ -9,6 +9,7 @@ import com.example.dotdot.global.exception.user.ImageUploadFailException;
 import com.example.dotdot.global.exception.user.InvalidPasswordException;
 import com.example.dotdot.global.exception.user.UserNotFoundException;
 import com.example.dotdot.repository.UserRepository;
+import com.example.dotdot.repository.UserTeamRepository;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import jakarta.transaction.Transactional;
@@ -28,6 +29,7 @@ import static com.example.dotdot.global.exception.user.UserErrorCode.*;
 @Transactional
 public class UserService {
     private final UserRepository userRepository;
+    private final UserTeamRepository userTeamRepository;
     private final PasswordEncoder passwordEncoder;
     private final Storage storage;
 
@@ -86,9 +88,9 @@ public class UserService {
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
     }
 
-    // 회원 탈퇴 기능
     public void withdrawal(Long userId) {
         User user = findUserById(userId);
+        userTeamRepository.deleteAllByUser(user);
         userRepository.delete(user);
     }
 
