@@ -29,7 +29,7 @@ public class MeetingController implements MeetingControllerSpecification{
     public ResponseEntity<DataResponse<CreateMeetingResponse>> createMeeting(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody CreateMeetingRequest request) {
-        Long meetingId = meetingService.createMeeting(request);
+        Long meetingId = meetingService.createMeeting(userDetails.getId(),request);
         return ResponseEntity.ok(DataResponse.from(new CreateMeetingResponse(meetingId)));
     }
 
@@ -38,7 +38,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long teamId,
             @RequestParam(required = false) String status) {
-        List<MeetingListResponse> meetings = meetingService.getMeetingLists(teamId, status);
+        List<MeetingListResponse> meetings = meetingService.getMeetingLists(userDetails.getId(),teamId, status);
         return ResponseEntity.ok(DataResponse.from(meetings));
     }
 
@@ -46,7 +46,7 @@ public class MeetingController implements MeetingControllerSpecification{
     public ResponseEntity<DataResponse<MeetingPreviewResponse>> getMeetingPreview(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long meetingId) {
-        MeetingPreviewResponse response = meetingService.getMeetingPreview(meetingId);
+        MeetingPreviewResponse response = meetingService.getMeetingPreview(userDetails.getId(),meetingId);
         return ResponseEntity.ok(DataResponse.from(response));
     }
 
@@ -56,7 +56,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long meetingId,
             @RequestBody @Valid CreateMeetingRequest request) {
-        Long updatedId = meetingService.updateMeeting(meetingId, request);
+        Long updatedId = meetingService.updateMeeting(userDetails.getId(),meetingId, request);
         return ResponseEntity.ok(DataResponse.from(updatedId));
     }
     @PatchMapping("/{meetingId}/status")
@@ -65,7 +65,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @PathVariable Long meetingId,
             @RequestBody @Valid MeetingStatusUpdateRequest req
     ) {
-        Long updatedId = meetingService.updateMeetingStatus(meetingId, req.getStatus());
+        Long updatedId = meetingService.updateMeetingStatus(userDetails.getId(),meetingId, req.getStatus());
         return ResponseEntity.ok(DataResponse.from(updatedId));
     }
 
@@ -86,7 +86,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long meetingId
     ) {
-        String summary = meetingService.summarizeMeeting(meetingId);
+        String summary = meetingService.summarizeMeeting(userDetails.getId(),meetingId);
         return ResponseEntity.ok(new MeetingSummaryResponse(meetingId, summary));
     }
 
@@ -96,7 +96,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long meetingId
     ) {
-        String summary = meetingService.getMeetingSummary(meetingId);
+        String summary = meetingService.getMeetingSummary(userDetails.getId(),meetingId);
         if (summary == null || summary.isBlank()) {
             return ResponseEntity.noContent().build();
         }
@@ -108,7 +108,7 @@ public class MeetingController implements MeetingControllerSpecification{
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long meetingId
     ) {
-        var res = meetingService.getSummaryStatus(meetingId);
+        var res = meetingService.getSummaryStatus(userDetails.getId(),meetingId);
         return ResponseEntity.ok(DataResponse.from(res));
     }
 
