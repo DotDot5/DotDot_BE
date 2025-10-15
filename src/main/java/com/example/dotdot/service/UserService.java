@@ -90,11 +90,7 @@ public class UserService {
 
     public void withdrawal(Long userId) {
         User user = findUserById(userId);
-
-        // 사용자를 삭제하기 전에, 해당 사용자와 관련된 모든 팀 소속 정보를 먼저 삭제합니다.
         userTeamRepository.deleteAllByUser(user);
-
-        // 사용자와 연결된 정보가 모두 정리되었으므로, 사용자를 안전하게 삭제합니다.
         userRepository.delete(user);
     }
 
