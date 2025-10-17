@@ -1,18 +1,19 @@
 package com.example.dotdot.repository;
 
+import com.example.dotdot.domain.UserTeam;
 import com.example.dotdot.domain.task.Task;
-import com.example.dotdot.domain.task.TaskPriority;
 import com.example.dotdot.domain.task.TaskStatus;
-import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
     void deleteByMeeting_Id(Long meetingId);
@@ -28,14 +29,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("teamId") Long teamId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
-            @Param("meetingId") Long meetingId,                // 선택
-            @Param("assigneeUserId") Long assigneeUserId,      // 선택(전체팀원= null)
+            @Param("meetingId") Long meetingId,
+            @Param("assigneeUserId") Long assigneeUserId,
             Pageable pageable
     );
 
     void deleteAllByMeetingId(Long meetingId);
 
-    //진행 상황 요약
     interface StatusCount {
         TaskStatus getStatus();
         long getCount();
@@ -54,13 +54,22 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("teamId") Long teamId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
-            @Param("meetingId") Long meetingId,               // 선택
-            @Param("assigneeUserId") Long assigneeUserId      // 선택
+            @Param("meetingId") Long meetingId,
+            @Param("assigneeUserId") Long assigneeUserId
     );
-    /**
-     * 상태 대량 변경
-     */
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Task t SET t.status = :status WHERE t.id IN :ids")
     int bulkUpdateStatus(@Param("ids") Collection<Long> ids, @Param("status") TaskStatus status);
+
+    @Modifying
+    @Query("UPDATE Task t SET t.assignee = null WHERE t.assignee IN :userTeams")
+    void unassignTasksByUserTeams(@Param("userTeams") List<UserTeam> userTeams);
+
+
+    @Query("SELECT t FROM Task t " +
+            "LEFT JOIN FETCH t.assignee a " +
+            "LEFT JOIN FETCH a.user " +
+            "WHERE t.id = :taskId")
+    Optional<Task> findTaskWithDetailsById(@Param("taskId") Long taskId);
 }

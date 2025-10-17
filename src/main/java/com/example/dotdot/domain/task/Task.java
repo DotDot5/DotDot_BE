@@ -1,7 +1,6 @@
 package com.example.dotdot.domain.task;
 
 import com.example.dotdot.domain.Meeting;
-import com.example.dotdot.domain.Participant;
 import com.example.dotdot.domain.Team;
 import com.example.dotdot.domain.UserTeam;
 import jakarta.persistence.*;
@@ -32,9 +31,12 @@ public class Task {
     @JoinColumn(name = "meeting_id", nullable = true)
     private Meeting meeting;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "assignee_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assignee_id", nullable = true)
     private UserTeam assignee;
+
+    @Column(name = "assignee_name", length = 255)
+    private String assigneeName;
 
     @NotBlank
     @Column(length = 200, nullable = false)
@@ -69,6 +71,7 @@ public class Task {
         this.status = status;
     }
 
+    //update 메소드에서 assigneeName도 함께 업데이트하도록 수정
     public void update(String title,
                        String description,
                        UserTeam assignee,
@@ -77,11 +80,19 @@ public class Task {
                        LocalDateTime due) {
         if (title != null && !title.isBlank()) this.title = title;
         if (description != null) this.description = description;
-        if (assignee != null) this.assignee = assignee;
+        if (assignee != null) {
+            this.assignee = assignee;
+            this.assigneeName = assignee.getUser().getName(); // 이름도 함께 업데이트
+        }
         if (priority != null) this.priority = priority;
         if (status != null) this.status = status;
         if (due != null) this.due = due;
     }
+
+    public void unassign() {
+        this.assignee = null;
+    }
+
     public static Task of(Team team,
                           Meeting meeting,
                           UserTeam assignee,
@@ -94,12 +105,12 @@ public class Task {
                 .team(team)
                 .meeting(meeting)
                 .assignee(assignee)
+                .assigneeName(assignee != null ? assignee.getUser().getName() : null) // 이름도 함께 저장
                 .title(title)
                 .description(description)
-                .priority(priority != null ? priority : TaskPriority.MEDIUM) // 기본 보통
-                .status(status != null ? status : TaskStatus.TODO)           // 기본 대기
+                .priority(priority != null ? priority : TaskPriority.MEDIUM)
+                .status(status != null ? status : TaskStatus.TODO)
                 .due(due)
                 .build();
     }
-
 }
