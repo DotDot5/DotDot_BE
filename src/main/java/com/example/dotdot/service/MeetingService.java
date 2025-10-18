@@ -13,7 +13,6 @@ import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
 import com.example.dotdot.global.client.OpenAISummaryClient;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
@@ -25,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime; // [수정] LocalDateTime -> ZonedDateTime
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -62,8 +61,6 @@ public class MeetingService {
                         .team(team)
                         .title(request.getTitle())
                         .meetingAt(request.getMeetingAt())
-                        // [수정] createdAt 필드도 ZonedDateTime으로 변경되었다고 가정합니다.
-                        // 만약 Instant 타입이라면 Instant.now()를 사용하세요.
                         .createdAt(LocalDateTime.now())
                         .meetingMethod(request.getMeetingMethod())
                         .note(request.getNote())
@@ -73,7 +70,7 @@ public class MeetingService {
         List<ParticipantDto> participantList = request.getParticipants();
         for (ParticipantDto dto : participantList)
         {
-            User user = userRepository.findById(dto.getUserId())
+            User user = userRepository.findByIdAndDeletedAtIsNull(dto.getUserId())
                     .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
 
             participantRepository.save(
@@ -105,6 +102,7 @@ public class MeetingService {
         User user = getUserOrThrow(userId);
         Team team = getTeamOrThrow(teamId);
         checkMembershipOrThrow(user, team);
+
         List<Meeting> meetings = meetingRepository.findAllByTeamId(teamId);
         ZonedDateTime now = ZonedDateTime.now();
 
@@ -150,7 +148,7 @@ public class MeetingService {
     }
 
 
-    @Transactional
+    @Transactional(readOnly = true)
     public MeetingPreviewResponse getMeetingPreview(Long userId, Long meetingId) {
         User user = getUserOrThrow(userId);
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -159,7 +157,8 @@ public class MeetingService {
         checkMembershipOrThrow(user, team);
 
         List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
-        List<Participant> participants = participantRepository.findAllByMeetingId(meetingId);
+
+        List<Participant> participants = participantRepository.findAllWithUserByMeetingId(meetingId);
 
         return MeetingPreviewResponse.from(meeting, agendas, participants);
     }
@@ -172,7 +171,7 @@ public class MeetingService {
         Long teamId = request.getTeamId();
         Team team = getTeamOrThrow(teamId);
         checkMembershipOrThrow(userMe, team);
-        // meeting.update() 메소드도 ZonedDateTime을 받도록 수정되었다고 가정합니다.
+
         meeting.update(
                 request.getTitle(),
                 request.getMeetingAt(),
@@ -184,7 +183,7 @@ public class MeetingService {
         agendaRepository.deleteAllByMeetingId(meetingId);
 
         for (ParticipantDto dto : request.getParticipants()) {
-            User user = userRepository.findById(dto.getUserId())
+            User user = userRepository.findByIdAndDeletedAtIsNull(dto.getUserId())
                     .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
 
             participantRepository.save(
@@ -217,6 +216,7 @@ public class MeetingService {
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
         Team team = meeting.getTeam();
         checkMembershipOrThrow(user, team);
+
         if (meeting.getStatus() == Meeting.MeetingStatus.FINISHED && status != Meeting.MeetingStatus.FINISHED) {
             throw new IllegalStateException("이미 종료된 회의 상태는 되돌릴 수 없습니다.");
         }
@@ -267,6 +267,7 @@ public class MeetingService {
     public void updateMeetingSttResultAndSaveLogs(Long meetingId, SttResultUpdateRequest request) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new EntityNotFoundException("Meeting not found with ID: " + meetingId));
+
         meeting.setDuration(request.getDuration());
         meeting.setTranscript(request.getTranscript());
         meeting.setAudioId(request.getAudioId());
@@ -313,11 +314,6 @@ public class MeetingService {
                 .audioId(meeting.getAudioId())
                 .speechLogs(speechLogDtos)
                 .build();
-    }
-
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
 
     @Transactional
@@ -381,7 +377,6 @@ public class MeetingService {
         Team team = m.getTeam();
         checkMembershipOrThrow(user, team);
 
-        // ZonedDateTime의 toString()은 ISO 8601 표준 형식을 반환하므로 안전합니다.
         return new MeetingSummaryStatusResponse(
                 m.getId(),
                 m.getSummaryStatus().name(),
@@ -418,5 +413,10 @@ public class MeetingService {
         if (!userTeamRepository.existsByUserAndTeam(user, team)) {
             throw new ForbiddenTeamAccessException(FORBIDDEN_TEAM_ACCESS);
         }
+    }
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
 }
