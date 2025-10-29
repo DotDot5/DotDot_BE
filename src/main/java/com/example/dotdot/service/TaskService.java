@@ -210,7 +210,12 @@ public class TaskService {
         Team team = getTeamOrThrow(meeting.getTeam().getId());
         checkMembershipOrThrow(user, team);
 
-        String transcript = meeting.getTranscript();
+//        String transcript = meeting.getTranscript();
+        String transcript = firstNonBlank(
+                meeting.getSummaryTasks(),
+                meeting.getSummary(),
+                meeting.getTranscript()
+        );
         if (transcript == null || transcript.isBlank()) {
             throw new AppException(TaskErrorCode.INVALID_REQUEST);
         }
@@ -372,4 +377,13 @@ public class TaskService {
         var zone = java.time.ZoneId.systemDefault();
         return ldt.atZone(zone).toOffsetDateTime().toString();
     }
+
+    private static String firstNonBlank(String... texts) {
+        if (texts == null) return null;
+        for (String t : texts) {
+            if (t != null && !t.isBlank()) return t;
+        }
+        return null;
+    }
+
 }
