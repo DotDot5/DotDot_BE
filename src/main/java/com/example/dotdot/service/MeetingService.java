@@ -343,14 +343,19 @@ public class MeetingService {
                     agendaText.append("  내용: ").append(a.getBody()).append("\n");
                 }
             }
-            String fullText = transcript + "\n\n" + agendaText;
 
-            String summary = summaryClient.summarize(fullText);
+            // transcript와 agendaText를 분리해서 전달
+            String fullResult = summaryClient.summarize(transcript, agendaText.toString());
+            // 요약 + 할 일 전체 결과
+            meeting.setSummaryTasks(fullResult);
 
-            meeting.setSummary(summary);
+            // 사용자에게 보이는 summary 필드
+            String cleanSummary = summaryClient.extractCleanSummary(fullResult);
+            meeting.setSummary(cleanSummary);
+
             meeting.setSummaryStatus(Meeting.SummaryStatus.COMPLETED);
             meeting.setSummaryUpdatedAt(LocalDateTime.now());
-            return summary;
+            return cleanSummary;
 
         } catch (Exception e) {
             meeting.setSummaryStatus(Meeting.SummaryStatus.FAILED);
