@@ -24,4 +24,7 @@ public interface UserTeamRepository extends JpaRepository<UserTeam, Long> {
 
     List<UserTeam> findByUserOrderByTeamCreatedAtAsc(User user);
 
+    // 회원 탈퇴 시 사용자가 속한 모든 팀 정보를 삭제
+    void deleteAllByUser(User user);
 }
+

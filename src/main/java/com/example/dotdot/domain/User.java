@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -13,6 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Table(name = "users")
+@SQLDelete(sql = "UPDATE users SET deleted_at = NOW() WHERE user_id = ?")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,6 +38,8 @@ public class User {
 //    private String audioUrl; // 사용자별 음성 링크
 
     private String refreshToken;
+
+    private LocalDateTime deletedAt;
 
     // refreshToken 업데이트
     public void updateRefreshToken(String refreshToken) {
@@ -57,4 +63,21 @@ public class User {
     public void updatePassword(String password) {
         this.password = password;
     }
+
+    public void withdraw() {
+        this.deletedAt = LocalDateTime.now();
+
+        this.email = "deleted_" + this.id + "_" + System.currentTimeMillis() + "@deleted.com";
+
+        this.password = null;
+        this.refreshToken = null;
+        this.profileImageUrl = null;
+        this.department = null;
+        this.position = null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
 }
+

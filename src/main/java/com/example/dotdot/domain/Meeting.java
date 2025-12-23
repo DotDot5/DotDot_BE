@@ -41,6 +41,11 @@ public class Meeting {
     @Column(columnDefinition = "LONGTEXT")
     private String summary;
 
+    // 태스크 추출 AI가 사용할 요약 + 할 일 원본
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String summaryTasks;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "summary_status", nullable = false)
     @Builder.Default
@@ -75,7 +80,7 @@ public class Meeting {
     private MeetingStatus status = MeetingStatus.SCHEDULED;
 
     public enum MeetingMethod {
-        RECORD, REALTIME
+        RECORD, REALTIME, NONE
     }
 
     public enum SummaryStatus {

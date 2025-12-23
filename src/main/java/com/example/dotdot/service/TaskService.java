@@ -1,9 +1,6 @@
 package com.example.dotdot.service;
 
-import com.example.dotdot.domain.Meeting;
-import com.example.dotdot.domain.Team;
-import com.example.dotdot.domain.User;
-import com.example.dotdot.domain.UserTeam;
+import com.example.dotdot.domain.*;
 import com.example.dotdot.domain.task.Task;
 import com.example.dotdot.domain.task.TaskPriority;
 import com.example.dotdot.domain.task.TaskStatus;
@@ -18,7 +15,6 @@ import com.example.dotdot.global.client.OpenAITaskExtractClient;
 import com.example.dotdot.global.exception.AppException;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
 import com.example.dotdot.global.exception.meeting.MeetingNotFoundException;
-import com.example.dotdot.global.exception.task.AssigneeNotInTeamException;
 import com.example.dotdot.global.exception.task.TaskErrorCode;
 import com.example.dotdot.global.exception.task.TaskNotFoundException;
 import com.example.dotdot.global.exception.team.ForbiddenTeamAccessException;
@@ -57,66 +53,58 @@ public class TaskService {
     private final OpenAITaskExtractClient taskExtractClient;
     private final AgendaRepository agendaRepository;
 
-    //task 생성
     @Transactional
     public Long createTask(Long userId, Long teamId, TaskCreateRequest request) {
         User user = getUserOrThrow(userId);
         Team team = getTeamOrThrow(teamId);
+        checkMembershipOrThrow(user, team);
 
-        UserTeam assignee = userTeamRepository.findByTeam_IdAndUser_Id(team.getId(), request.getAssigneeId())
+        User assigneeUser = userRepository.findByIdAndDeletedAtIsNull(request.getAssigneeId())
+                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+
+        UserTeam assignee = userTeamRepository.findByUserAndTeam(assigneeUser, team)
                 .orElseThrow(() -> new AppException(TaskErrorCode.USER_NOT_IN_TEAM));
 
-        checkMembershipOrThrow(user,team);
-
-        Long meetingId = request.getMeetingId();
-        if (meetingId != null && meetingId <= 0) {
-            meetingId = null; // 0, 음수는 회의 없음으로 간주
-        }
-
         Meeting meeting = null;
-        if(meetingId!=null) {
+        if (request.getMeetingId() != null && request.getMeetingId() > 0) {
             meeting = meetingRepository.findById(request.getMeetingId())
                     .orElseThrow(() -> new MeetingNotFoundException(MEETING_NOT_FOUND));
             if (!meeting.getTeam().getId().equals(team.getId())) {
-                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM); // 없으면 FORBIDDEN으로 대체
+                throw new AppException(MeetingErrorCode.MEETING_NOT_IN_TEAM);
             }
         }
-
 
         Task saved = taskRepository.save(Task.of(
                 team, meeting, assignee,
                 request.getTitle(), request.getDescription(), request.getPriority(),
-                request.getStatus(), request.getDue() // DTO가 LocalDate를 제공한다고 가정
+                request.getStatus(), request.getDue()
         ));
         return saved.getId();
     }
 
-    //task 조회
     public TaskResponse getTask(Long userId, Long taskId) {
         User user = getUserOrThrow(userId);
 
-        Task task = taskRepository.findById(taskId)
+        Task task = taskRepository.findTaskWithDetailsById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(TASK_NOT_FOUND));
 
-        Team team = getTeamOrThrow(task.getTeam().getId());
-        checkMembershipOrThrow(user, team);
+        checkMembershipOrThrow(user, task.getTeam());
         return TaskResponse.from(task);
     }
 
-    //task 수정
     @Transactional
     public void updateTask(Long userId, Long taskId, TaskUpdateRequest request) {
         User user = getUserOrThrow(userId);
-
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(TASK_NOT_FOUND));
-        Team team = getTeamOrThrow(task.getTeam().getId());
-        checkMembershipOrThrow(user, team);
+        checkMembershipOrThrow(user, task.getTeam());
 
         UserTeam newAssignee = null;
         if (request.getAssigneeId() != null) {
-            // 담당자 변경 시에도 같은 팀 소속인지 점검
-            newAssignee = userTeamRepository.findByTeam_IdAndUser_Id(task.getTeam().getId(), request.getAssigneeId())
+            User assigneeUser = userRepository.findByIdAndDeletedAtIsNull(request.getAssigneeId())
+                    .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+
+            newAssignee = userTeamRepository.findByUserAndTeam(assigneeUser, task.getTeam())
                     .orElseThrow(() -> new AppException(TaskErrorCode.USER_NOT_IN_TEAM));
         }
 
@@ -130,28 +118,22 @@ public class TaskService {
         );
     }
 
-    //task 상태 변경
     @Transactional
     public void changeStatus(Long userId, Long taskId, TaskStatus status) {
         User user = getUserOrThrow(userId);
-
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(TaskErrorCode.TASK_NOT_FOUND));
-
-        Team team = getTeamOrThrow(task.getTeam().getId());
-
-        checkMembershipOrThrow(user,team);
-
+        checkMembershipOrThrow(user, task.getTeam());
         task.changeStatus(status != null ? status : TaskStatus.TODO);
-
     }
 
-    //task 목록 및 요약 반환
+    // ... listTasks, deleteTask, extractFromTranscript 등 나머지 메소드들 ...
+    // (이 메소드들도 내부적으로 getUserOrThrow를 사용하므로 보안이 강화됩니다.)
     public TaskListResponse listTasks(
             Long userId,
             Long teamId,
-            LocalDate date,                 // 달력 선택 날짜 (null이면 오늘)
-            Long meetingIdOrNull,           // 회의 필터 (null이면 전체)
+            LocalDate date,
+            Long meetingIdOrNull,
             Long assigneeUserIdOrNull,
             Pageable pageable) {
 
@@ -240,7 +222,7 @@ public class TaskService {
                 : java.util.Collections.emptyList();
 
         String participantLines = participants.stream()
-                .map(p -> "- " + p.getUser().getName())
+                .map(p -> p.getUser().getName())
                 .collect(java.util.stream.Collectors.joining("\n"));
 
         String agendaText = agendas.isEmpty() ? "(없음)" :
@@ -307,6 +289,11 @@ public class TaskService {
         return new ExtractTasksResponse(meetingId, created, skipped, payload);
     }
 
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
+    }
+
     private String buildTaskPrompt(String transcript, String participantLines, String agendaText, String language) {
         return """
             당신은 회의록에서 실행 가능한 TODO 태스크를 추출하는 도우미입니다.
@@ -335,11 +322,6 @@ public class TaskService {
 
 
 
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
-    }
-
     private Team getTeamOrThrow(Long teamId) {
         return teamRepository.findById(teamId)
                 .orElseThrow(() -> new TeamNotFoundException(TEAM_NOT_FOUND));
@@ -362,7 +344,6 @@ public class TaskService {
 
     private static String normalizeName(String name){
         if (name == null) return null;
-        // 공백/구두점 제거, “님/씨” 접미사 제거, 소문자화
         return name.replaceAll("[\\s\\p{Punct}]", "")
                 .replaceAll("(님|씨)$","")
                 .toLowerCase();
@@ -392,5 +373,3 @@ public class TaskService {
         return ldt.atZone(zone).toOffsetDateTime().toString();
     }
 }
-
-

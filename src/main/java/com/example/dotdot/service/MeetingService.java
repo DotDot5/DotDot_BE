@@ -4,6 +4,8 @@ import com.example.dotdot.domain.*;
 import com.example.dotdot.dto.request.meeting.SttResultUpdateRequest;
 import com.example.dotdot.dto.request.meeting.SpeechLogDto;
 import com.example.dotdot.global.exception.AppException;
+import com.example.dotdot.global.exception.team.ForbiddenTeamAccessException;
+import com.example.dotdot.global.exception.team.TeamNotFoundException;
 import com.example.dotdot.repository.*;
 import com.example.dotdot.dto.request.meeting.AgendaDto;
 import com.example.dotdot.dto.request.meeting.CreateMeetingRequest;
@@ -11,7 +13,6 @@ import com.example.dotdot.dto.request.meeting.ParticipantDto;
 import com.example.dotdot.dto.response.meeting.MeetingListResponse;
 import com.example.dotdot.dto.response.meeting.MeetingPreviewResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSttResultResponse;
-import com.example.dotdot.dto.response.meeting.MeetingSummaryResponse;
 import com.example.dotdot.dto.response.meeting.MeetingSummaryStatusResponse;
 import com.example.dotdot.global.client.OpenAISummaryClient;
 import com.example.dotdot.global.exception.meeting.MeetingErrorCode;
@@ -23,13 +24,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime; // [수정] LocalDateTime -> ZonedDateTime
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 
 import static com.example.dotdot.global.exception.meeting.MeetingErrorCode.MEETING_DELETE_FORBIDDEN;
+import static com.example.dotdot.global.exception.team.TeamErrorCode.FORBIDDEN_TEAM_ACCESS;
+import static com.example.dotdot.global.exception.team.TeamErrorCode.TEAM_NOT_FOUND;
 import static com.example.dotdot.global.exception.user.UserErrorCode.NOT_FOUND;
 
 @Service
@@ -47,17 +50,17 @@ public class MeetingService {
     private final TaskRepository taskRepository;
 
     @Transactional
-    public Long createMeeting(CreateMeetingRequest request) {
-        Team team = teamRepository.findById(request.getTeamId())
-                .orElseThrow(() -> new IllegalArgumentException("팀을 찾을 수 없습니다."));
+    public Long createMeeting(Long userId, CreateMeetingRequest request) {
+        User userMe = getUserOrThrow(userId);
+        Long teamId = request.getTeamId();
+        Team team = getTeamOrThrow(teamId);
+        checkMembershipOrThrow(userMe, team);
 
         Meeting meeting = meetingRepository.save(
                 Meeting.builder()
                         .team(team)
                         .title(request.getTitle())
                         .meetingAt(request.getMeetingAt())
-                        // [수정] createdAt 필드도 ZonedDateTime으로 변경되었다고 가정합니다.
-                        // 만약 Instant 타입이라면 Instant.now()를 사용하세요.
                         .createdAt(LocalDateTime.now())
                         .meetingMethod(request.getMeetingMethod())
                         .note(request.getNote())
@@ -67,7 +70,7 @@ public class MeetingService {
         List<ParticipantDto> participantList = request.getParticipants();
         for (ParticipantDto dto : participantList)
         {
-            User user = userRepository.findById(dto.getUserId())
+            User user = userRepository.findByIdAndDeletedAtIsNull(dto.getUserId())
                     .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
 
             participantRepository.save(
@@ -95,7 +98,11 @@ public class MeetingService {
     }
 
     @Transactional(readOnly = true)
-    public List<MeetingListResponse> getMeetingLists(Long teamId, String statusFilter) {
+    public List<MeetingListResponse> getMeetingLists(Long userId,Long teamId, String statusFilter) {
+        User user = getUserOrThrow(userId);
+        Team team = getTeamOrThrow(teamId);
+        checkMembershipOrThrow(user, team);
+
         List<Meeting> meetings = meetingRepository.findAllByTeamId(teamId);
         ZonedDateTime now = ZonedDateTime.now();
 
@@ -141,23 +148,30 @@ public class MeetingService {
     }
 
 
-    @Transactional
-    public MeetingPreviewResponse getMeetingPreview(Long meetingId) {
+    @Transactional(readOnly = true)
+    public MeetingPreviewResponse getMeetingPreview(Long userId, Long meetingId) {
+        User user = getUserOrThrow(userId);
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        Team team = meeting.getTeam();
+        checkMembershipOrThrow(user, team);
 
         List<Agenda> agendas = agendaRepository.findAllByMeetingId(meetingId);
-        List<Participant> participants = participantRepository.findAllByMeetingId(meetingId);
+
+        List<Participant> participants = participantRepository.findAllWithUserByMeetingId(meetingId);
 
         return MeetingPreviewResponse.from(meeting, agendas, participants);
     }
 
     @Transactional
-    public Long updateMeeting(Long meetingId, CreateMeetingRequest request) {
+    public Long updateMeeting(Long userId, Long meetingId, CreateMeetingRequest request) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        User userMe = getUserOrThrow(userId);
+        Long teamId = request.getTeamId();
+        Team team = getTeamOrThrow(teamId);
+        checkMembershipOrThrow(userMe, team);
 
-        // meeting.update() 메소드도 ZonedDateTime을 받도록 수정되었다고 가정합니다.
         meeting.update(
                 request.getTitle(),
                 request.getMeetingAt(),
@@ -169,7 +183,7 @@ public class MeetingService {
         agendaRepository.deleteAllByMeetingId(meetingId);
 
         for (ParticipantDto dto : request.getParticipants()) {
-            User user = userRepository.findById(dto.getUserId())
+            User user = userRepository.findByIdAndDeletedAtIsNull(dto.getUserId())
                     .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
 
             participantRepository.save(
@@ -196,9 +210,12 @@ public class MeetingService {
     }
 
     @Transactional
-    public Long updateMeetingStatus(Long meetingId, Meeting.MeetingStatus status) {
+    public Long updateMeetingStatus(Long userId, Long meetingId, Meeting.MeetingStatus status) {
+        User user = getUserOrThrow(userId);
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        Team team = meeting.getTeam();
+        checkMembershipOrThrow(user, team);
 
         if (meeting.getStatus() == Meeting.MeetingStatus.FINISHED && status != Meeting.MeetingStatus.FINISHED) {
             throw new IllegalStateException("이미 종료된 회의 상태는 되돌릴 수 없습니다.");
@@ -299,15 +316,13 @@ public class MeetingService {
                 .build();
     }
 
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
-    }
-
     @Transactional
-    public String summarizeMeeting(Long meetingId) {
+    public String summarizeMeeting(Long userId, Long meetingId) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        User user = getUserOrThrow(userId);
+        Team team = meeting.getTeam();
+        checkMembershipOrThrow(user, team);
 
         String transcript = meeting.getTranscript();
         if (transcript == null || transcript.isBlank()) {
@@ -328,14 +343,19 @@ public class MeetingService {
                     agendaText.append("  내용: ").append(a.getBody()).append("\n");
                 }
             }
-            String fullText = transcript + "\n\n" + agendaText;
 
-            String summary = summaryClient.summarize(fullText);
+            // transcript와 agendaText를 분리해서 전달
+            String fullResult = summaryClient.summarize(transcript, agendaText.toString());
+            // 요약 + 할 일 전체 결과
+            meeting.setSummaryTasks(fullResult);
 
-            meeting.setSummary(summary);
+            // 사용자에게 보이는 summary 필드
+            String cleanSummary = summaryClient.extractCleanSummary(fullResult);
+            meeting.setSummary(cleanSummary);
+
             meeting.setSummaryStatus(Meeting.SummaryStatus.COMPLETED);
             meeting.setSummaryUpdatedAt(LocalDateTime.now());
-            return summary;
+            return cleanSummary;
 
         } catch (Exception e) {
             meeting.setSummaryStatus(Meeting.SummaryStatus.FAILED);
@@ -345,18 +365,23 @@ public class MeetingService {
     }
 
     @Transactional(readOnly = true)
-    public String getMeetingSummary(Long meetingId) {
+    public String getMeetingSummary(Long userId, Long meetingId) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        User user = getUserOrThrow(userId);
+        Team team = meeting.getTeam();
+        checkMembershipOrThrow(user, team);
         return meeting.getSummary();
     }
 
     @Transactional(readOnly = true)
-    public MeetingSummaryStatusResponse getSummaryStatus(Long meetingId) {
+    public MeetingSummaryStatusResponse getSummaryStatus(Long userId, Long meetingId) {
         Meeting m = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
+        User user = getUserOrThrow(userId);
+        Team team = m.getTeam();
+        checkMembershipOrThrow(user, team);
 
-        // ZonedDateTime의 toString()은 ISO 8601 표준 형식을 반환하므로 안전합니다.
         return new MeetingSummaryStatusResponse(
                 m.getId(),
                 m.getSummaryStatus().name(),
@@ -371,6 +396,8 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(MeetingErrorCode.MEETING_NOT_FOUND));
         Team team = meeting.getTeam();
+        checkMembershipOrThrow(user, team);
+
         userTeamRepository.findByTeam(team).stream()
                 .filter(ut -> ut.getUser().getId().equals(userId))
                 .findFirst()
@@ -380,5 +407,21 @@ public class MeetingService {
         meetingRepository.deleteById(meetingId);
         recommendationRepository.deleteAllByMeetingId(meetingId);
         taskRepository.deleteAllByMeetingId(meetingId);
+    }
+
+    private Team getTeamOrThrow(Long teamId) {
+        return teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(TEAM_NOT_FOUND));
+    }
+
+    private void checkMembershipOrThrow(User user, Team team) {
+        if (!userTeamRepository.existsByUserAndTeam(user, team)) {
+            throw new ForbiddenTeamAccessException(FORBIDDEN_TEAM_ACCESS);
+        }
+    }
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(NOT_FOUND));
     }
 }

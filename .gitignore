@@ -44,3 +44,5 @@ dotdot_gcs.json
 .DS_Store
 
 .env
+
+application-prod.yml
