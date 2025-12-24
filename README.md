@@ -112,6 +112,9 @@ src/main/java/com/example/dotdot
 </br>
 
 ## 📎 Software Architecture
+<img width="937" height="1150" alt="스크린샷 2025-12-24 오전 12 28 13" src="https://github.com/user-attachments/assets/b7af3edd-9711-48f7-9fd1-42e47c4dd325" />
+
+</br>
 
 ## 📄 Meeting Analysis Flow
 ```mermaid
